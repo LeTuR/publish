@@ -45,3 +45,22 @@ test("the Testing section names the documentation step", () => {
   assert.ok(testing, "the body template has no ## Testing section");
   assert.match(testing[1], /documentation step/, "Testing must say what the documentation step updated");
 });
+
+test("every claim is backed by something run in this session, or labelled", () => {
+  const skill = read(SKILL_MD);
+  const found = /\n## Claim only what was verified here\n([\s\S]*?)\n## /.exec(skill);
+  assert.ok(found, "the skill has no rule on what may be claimed");
+  const rule = found[1].replace(/\s+/g, " ");
+  assert.match(rule, /run locally in this session/);
+  assert.match(rule, /labelled as not verified/);
+  assert.match(rule, /never stated as fact/);
+  for (const where of ["change request body", "reply", "comment"]) {
+    assert.ok(rule.includes(where), `the rule does not cover a ${where}`);
+  }
+});
+
+test("the Testing section asks for evidence and names what was not verified", () => {
+  const testing = /\n## Testing\n([\s\S]*?)\n## /.exec(BODY)[1].replace(/\s+/g, " ");
+  assert.match(testing, /run in this session/, "Testing must say what ran here, not what should work");
+  assert.match(testing, /not verified/, "Testing must label what was not verified");
+});

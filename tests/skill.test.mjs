@@ -40,12 +40,12 @@ test("the body keeps the promises the description makes", () => {
     assert.ok(description.toLowerCase().includes(phase), `the description omits ${phase}`);
     assert.ok(skill.toLowerCase().includes(phase), `the body omits ${phase}`);
   }
-  const phases = [...skill.matchAll(/^## Phase (\d) - /gm)].map((m) => Number(m[1]));
-  assert.deepEqual(phases, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], "the phases are not numbered in order");
+  const phases = [...skill.matchAll(/^## Phase (\d+) - /gm)].map((m) => Number(m[1]));
+  assert.deepEqual(phases, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "the phases are not numbered in order");
 });
 
 test("documentation is its own phase, between the gate and the commit", () => {
-  const names = [...skill.matchAll(/^## Phase \d - (.+)$/gm)].map((m) => m[1]);
+  const names = [...skill.matchAll(/^## Phase \d+ - (.+)$/gm)].map((m) => m[1]);
   assert.deepEqual(names.slice(4, 7), ["gate", "documentation", "commit"]);
   const docs = /## Phase 5 - documentation\n([\s\S]*?)\n## /.exec(skill);
   assert.ok(docs, "there is no documentation phase");
@@ -118,22 +118,28 @@ test("the skill itself runs nothing but git", () => {
 
 const forgeRef = read(path.join(SKILL_DIR, "references", "forge.md"));
 
-test("the forge is a seam with four named operations", () => {
+test("the forge is a seam with five named operations", () => {
   assert.match(skill, /through the adapter table in \[`references\/forge\.md`\]/);
-  for (const op of ["default branch", "open or update a change request", "the head commit", "watch the pipeline"]) {
+  for (const op of [
+    "default branch",
+    "open or update a change request",
+    "the head commit",
+    "watch the pipeline",
+    "read and answer the feedback",
+  ]) {
     assert.ok(forgeRef.includes(op), `the operation table does not name "${op}"`);
   }
   const rows = [...forgeRef.matchAll(/^\| (\d) \| \*\*/gm)].map((m) => Number(m[1]));
-  assert.deepEqual(rows, [1, 2, 3, 4], "the operations must be numbered, because the phases cite them by number");
+  assert.deepEqual(rows, [1, 2, 3, 4, 5], "the operations must be numbered, because the phases cite them by number");
 });
 
-test("every shipped adapter implements all four operations", () => {
+test("every shipped adapter implements all five operations", () => {
   const adapters = [...forgeRef.matchAll(/^## (.+), through `(\w+)`$/gm)];
   assert.ok(adapters.length >= 2, "forge-agnostic means more than one adapter is actually written");
   for (const [, name, cli] of adapters) {
     const section = forgeRef.slice(forgeRef.indexOf(`## ${name}, through \`${cli}\``));
     const body = section.slice(0, section.indexOf("\n## ", 4) === -1 ? undefined : section.indexOf("\n## ", 4));
-    for (const op of ["# 1", "# 2", "# 3", "# 4"]) {
+    for (const op of ["# 1", "# 2", "# 3", "# 4", "# 5"]) {
       assert.ok(body.includes(op), `the ${cli} adapter has no command marked ${op}`);
     }
     assert.match(body, /head_sha/, `the ${cli} adapter documents no way to verify an attestation`);
