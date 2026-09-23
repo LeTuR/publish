@@ -25,10 +25,16 @@
 
 ## Testing
 
-<!-- What was run and how the change was verified: how many review rounds it
-     took, what they found and what got fixed, which gate steps ran, what the
-     documentation step updated, and how CI ended. Name what was not verified
-     too.
+<!-- What was run in this session and what it printed: how many review rounds
+     it took, which reviewer ran and at what version, what they found and what
+     got fixed, which gate steps ran with which commands, what the
+     documentation step updated, how CI ended, and how many maintainer threads
+     were answered.
+
+     Every sentence here is backed by something run in this session. Anything
+     that was not - another platform, another toolchain, a forge this run never
+     touched - is either left out or said plainly to be not verified. Never
+     state it as fact.
 
      Name any step that is skipped or failed, and why - the attestation records
      it either way, and a reader should not have to parse JSON to learn that

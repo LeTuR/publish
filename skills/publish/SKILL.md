@@ -19,8 +19,8 @@ field by hand or edit it afterwards - see
 [`references/attestation.md`](references/attestation.md).
 
 A change request is a pull request on GitHub and a merge request on GitLab. The
-gate is the same either way; only phases 1, 8 and 9 touch the forge, and they go
-through the adapter table in [`references/forge.md`](references/forge.md).
+gate is the same either way; only phases 1, 8, 9 and 10 touch the forge, and they
+go through the adapter table in [`references/forge.md`](references/forge.md).
 
 ```
   "ship this"
@@ -41,13 +41,17 @@ through the adapter table in [`references/forge.md`](references/forge.md).
   8 change request  five headings, the attestation for the pushed head last
   9 CI              watch it; a red pipeline is not done
       │
+ 10 feedback   ◀─┐  every review, thread and comment, answered and resolved
+      │          │
+      └─ fixes ──┘  back through review, gate, push, re-attest
+      │
       ▼
-  green, and the attestation names the head that is green
+  green, the attestation names the head that is green, and nothing is unanswered
 ```
 
-Every phase below reports one of four statuses, and phase 9 turns them into a
-verdict. There is no fifth status and no way to leave a phase unreported:
-`passed`, `failed`, `skipped`, `not-applicable`.
+Every phase below reports one of four statuses, and the report at the end turns
+them into a verdict. There is no fifth status and no way to leave a phase
+unreported: `passed`, `failed`, `skipped`, `not-applicable`.
 
 | status | means |
 | --- | --- |
@@ -61,6 +65,30 @@ only when every step is `passed` or `not-applicable`. Anything else is
 `blocked`, and a `blocked` verdict is reported to the user as not done. A step
 you could not run is never reported as one that passed, and "CI was still
 running" is never reported as green.
+
+## Claim only what was verified here
+
+Everything this skill writes for somebody else to read - the change request
+body, a reply on a thread, a comment - is a claim about work that was done, and
+a reader has no way to check it except by trusting it. So there is one rule,
+and it holds in every phase below:
+
+**Every statement must be backed by something run locally in this session**: a
+command, a test, a measurement, with its output read. Not what the code should
+do, not what the change is expected to fix - what was run here, and what it
+printed.
+
+- Something that was not verified is left out, or it is **labelled as not
+  verified** in the same sentence that makes it. It is **never stated as fact**.
+- "The tests pass" means they were run here and they passed. A step that was
+  skipped is named as skipped, in the body and in the attestation both.
+- A reply on a thread quotes the evidence briefly - the command and the line of
+  output that settles the point, not a promise about the next run.
+- A claim about another platform, another toolchain or another forge than the
+  one in front of you is unverified by definition. Say which one was exercised.
+
+This is the same discipline the statuses above encode, applied to prose: a
+sentence nobody ran is the `skipped` step of a change request body.
 
 ## Phase 0 - precedence
 
@@ -96,12 +124,19 @@ git remote get-url origin                # which forge this is
   somewhere else entirely.
 - **The forge** comes from `forge:` in the gate declaration, or from the origin
   host. Read [`references/forge.md`](references/forge.md) now and pick the
-  adapter: it is the four operations phases 1, 8 and 9 need, one command each.
+  adapter: it is the five operations phases 1, 8, 9 and 10 need, one command
+  each.
   **Check the forge CLI is authenticated here, before phase 2** - an
   authentication failure discovered at phase 8 is one discovered after the push.
   A forge with no adapter is a stop, not an improvisation: `git push` and a link
   to a web form is not a change request this skill opened, and nothing
   downstream can verify a body nobody wrote.
+- **A change request already open from this branch** makes this a re-publish,
+  and a re-publish starts by reading what the last one was told. Ask the forge
+  for it (operation 2's update form needs the number anyway), and if there is
+  one, work **phase 10** now, before the review: its checklist of maintainer
+  comments is input to this round of fixes, not an afterthought once the branch
+  has already been pushed again.
 - **The base branch** is, in order: `base:` in the gate declaration, else the
   forge's default branch (operation 1). Fall back to
   `git symbolic-ref refs/remotes/origin/HEAD` and then to `main` only if the
@@ -152,7 +187,16 @@ follow it. In outline:
 5. Cap it at five rounds. Still finding real defects at round five means the
    change is not ready: stop, report `failed`, and do not push.
 
-Record for the attestation: rounds run, findings raised, findings fixed.
+**thurview**, when this machine has it, reviews the same branch against a code
+graph of the callers and tests the diff does not show, and its rows feed the
+same rounds. The reference says how to detect it, how to bring it up to date
+before it runs, and what to do when the registry cannot be reached. It is
+optional and it is never a requirement: without it, the review above is the
+review, and the step passes on its own merits.
+
+Record for the attestation: rounds run, findings raised, findings fixed, and -
+when thurview ran - the command it ran, pinned to its version, as the review
+step's `command`.
 
 ## Phase 4 - gate
 
@@ -285,12 +329,82 @@ failure mode that matters, so it has one rule and the rule has no exceptions:
   blocks, and that is the honest answer - say the pipeline is still going and
   let the user decide whether to wait.
 
+## Phase 10 - feedback
+
+A change request with an unanswered comment on it is not published, it is
+waiting. This phase is where it stops waiting. On a first publish it runs once,
+here, after CI: that is when the reviews that matter most - a bot's, a
+maintainer's - arrive. On a re-publish it runs twice, because phase 1 sent you
+here before the review, so that the comments already waiting are fixed in the
+same round as everything else.
+
+**Read everything, through operation 5 of your adapter.** Not the unresolved
+ones, not the ones addressed to you: **every** review, inline thread, review
+comment and conversation comment on this change request, from humans and bots
+alike, with the thread each one belongs to and whether it is resolved. A bot's
+summary is a review like any other.
+
+**Keep a checklist, one item per comment.** Write it down before you fix
+anything: a comment worked from memory is the one that gets answered with a
+sentence nobody checked.
+
+For each item, in this order:
+
+1. **Understand or reproduce it.** Read the code it points at. If it claims a
+   behaviour, get that behaviour in front of you - a failing test, a command,
+   an output.
+2. **Fix it, test first** when it is about behaviour: the test that fails for
+   the reason the comment gives, then the fix that makes it pass. Then **verify
+   it locally** - run the test, run the gate step that covers it, and read what
+   it printed.
+3. **Or reply with the evidence why not**, when the comment is wrong, out of
+   scope, or already handled. That is a legitimate outcome, and it carries the
+   same burden of proof as a fix does.
+4. **Reply on that thread** saying what changed - the file, the commit, and
+   what now proves it - and **quote the local evidence**: the command you ran
+   and the line of its output. A reply that cannot point at something run here
+   says so plainly instead. Then **resolve** the thread.
+
+**A fix is new code**, so it goes **back to phase 3** and forward from there:
+review it, run the gate, commit, push, and **re-attest** for the new head. Reply
+and resolve after that push, so the thread names a commit the forge already has.
+
+The change request is not done while:
+
+- any **unresolved thread** is open on it, or
+- any **review check** is failing - a review bot's check is a check like the
+  others, whether or not the branch protection requires it.
+
+Either one is a `failed` `feedback` step, with the count still open as its
+reason, and a `failed` step blocks the verdict. A forge that could not be asked
+at all is `skipped`, also blocking. Everything answered and every review check
+green is `passed`, and a change request nobody has commented on is `passed`
+too - it ran, and there was nothing to answer.
+
+A point that was **already answered** on an earlier pass is answered: reply
+pointing at the thread that settled it and resolve the new one, rather than
+fixing the same thing twice. A review bot re-reads the branch on every push, so
+without that rule this phase never ends. If a **third pass** still brings
+substantive new findings, stop: record the `feedback` step `failed`, say what is
+still open, and hand it back - a change request that grows a new defect every
+time it is touched is not one more round away from ready.
+
+When the phase ends, **rewrite the whole block with operation 2** so the body
+carries the steps that ran after phase 8 wrote it - `ci` and `feedback` both.
+No commit was pushed for that rewrite, so **the head has not moved**: this is
+the same attestation with its last two steps filled in, not a new one. Push
+anything at all and the rule from phase 9 applies instead - re-attest for the
+new head.
+
+Record a `feedback` step, and report the number of **threads answered** in the
+same breath as the verdict.
+
 ## Reporting
 
 Compute the verdict, then say it in one line before anything else.
 
 - Every step `passed` or `not-applicable` → verdict `passed` → report the change
-  request URL and that CI is green.
+  request URL, that CI is green, and how many threads phase 10 answered.
 - Anything else → verdict `blocked` → **say it is not done**, name every step
   that is `failed` or `skipped`, and say what would unblock each one. The change
   request may well be open; that is not the same claim as published.

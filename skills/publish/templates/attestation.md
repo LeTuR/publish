@@ -26,7 +26,8 @@
       "status": "passed",
       "rounds": 0,
       "findings": 0,
-      "fixed": 0
+      "fixed": 0,
+      "command": "<the thurview command, pinned to its version - drop the key when the built-in review ran alone>"
     },
     {
       "name": "lint",
@@ -47,6 +48,10 @@
       "status": "passed",
       "conclusion": "success",
       "run_url": "<the pipeline run this verdict is about>"
+    },
+    {
+      "name": "feedback",
+      "status": "passed"
     }
   ],
   "verdict": "passed"
