@@ -65,10 +65,21 @@ Each step:
   step's own words. A skip with no reason is the failure mode this whole design
   exists to prevent, so a block containing one is malformed.
 - The review step also carries `rounds`, `findings` and `fixed`.
+- The review step's `command` is the thurview command that ran, pinned to the
+  version it ran at, which is how the block says which reviewer produced the
+  findings and at what version:
+  `npx --yes thurview@0.17.0 graph impact --base <sha> --head <sha>`. The
+  built-in review runs no command of its own, so it carries no `command`, and
+  that absence is what says it reviewed alone. There is no field for the
+  reviewer: `v1` is the shape below, a new key would be a new shape, and a
+  version belongs in the command that carried it anyway.
 - The CI step also carries `run_url` and `conclusion`.
 - The documentation step is named `documentation`, comes after the gate's
   steps and before CI, and carries nothing beyond `name`, `status` and, when it
   did not pass, `reason`.
+- The feedback step is named `feedback`, comes after CI, and carries the same
+  three: `name`, `status` and, when it did not pass, `reason` - the count of
+  threads still unresolved or review checks still failing.
 
 ## The verdict rule
 

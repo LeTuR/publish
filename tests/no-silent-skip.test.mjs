@@ -71,7 +71,7 @@ test("the skill declares a closed set of statuses and no way out of it", () => {
   }
   assert.match(
     skill,
-    /There is no fifth status and no way to leave a phase unreported/,
+    /There is no fifth status and no way to leave a phase\s+unreported/,
     "the skill must close the status set explicitly",
   );
 });

@@ -61,6 +61,75 @@ rule that keeps the step worth reading.
 Both rules at once: raise everything you can substantiate, and nothing you
 cannot.
 
+## thurview
+
+[thurview](https://www.npmjs.com/package/thurview) reviews a change against a
+code graph built at the two pinned commits: who calls a changed symbol, which
+tests reach it, which exported signatures moved. That is the half of a change a
+diff cannot show, and it is where pass 2 and pass 6 below find what a search
+misses.
+
+It is optional and it is **never a requirement**. It is a second pair of eyes,
+not a gate: a machine without it, or without a network, runs the review exactly
+as written here and the review step is `passed` all the same.
+
+**Detect it** before round one. Either form counts - the CLI is what the review
+runs, and the `thurview` or `review-fix` skill is how an agent already knows how
+to read what it prints.
+
+```sh
+command -v thurview                  # the CLI on PATH
+npx --no-install thurview --version  # a copy npx already has, without downloading one
+```
+
+**Keep it current** before it reviews anything - a graph built by an old version
+is an old answer about today's code.
+
+```sh
+npm view thurview version   # the latest published version
+thurview --version          # what is installed here
+thurview update             # upgrade an installed CLI in place
+npm i -g thurview@latest    # the same, when it was installed with npm
+```
+
+The skill is updated through the skills CLI, which takes the names it installed
+them under: `npx skills@latest update thurview review-fix --global --yes`.
+
+**Offline, or the update fails.** `npm view` cannot reach the registry, or the
+upgrade will not run: use the installed version, and **say so** in the change
+request's Testing section - which version ran, and that it could not be checked
+against the registry. An unchecked version is reported, never assumed current.
+
+**Run it** over the same range this file already told you to review, pinned to
+the version you just settled on, so that the command recorded in the attestation
+names the reviewer and its version:
+
+```sh
+npx --yes thurview@<version> graph impact     --base <base_sha> --head <head_sha>
+npx --yes thurview@<version> graph interfaces --base <base_sha> --head <head_sha>
+npx --yes thurview@<version> graph callers <name> --base <base_sha> --head <head_sha>
+```
+
+What to take from them:
+
+- `impact.reach` - code that calls something the change touched and was not
+  changed itself. Read each of those call sites against the new behaviour. This
+  is the finding pass 2 is looking for and a diff does not contain.
+- `reach[].tested: false` and `impact.untested` - a path nothing tests, which is
+  pass 6's question answered without guessing.
+- `interfaces` rows marked `changed` or `removed` - run `graph callers` on each,
+  and for a removed one ask the base graph, because head has no callers left.
+- `unresolved` and `truncated` - what the graph could not see. "No callers" is
+  only as true as those numbers allow, so a finding resting on them says so.
+
+Its rows are evidence, not findings. Each one still becomes a finding only with
+a failure scenario written out, and the findings it produces go through the
+**same rounds** as the rest: fix, review the fixes, stop when a round is clean.
+
+**Not available at all** - no CLI, no skill, or no way to run one: the built-in
+review, unchanged. Say in the Testing section that thurview did not run, and
+carry on with the passes below.
+
 ## The passes
 
 Work them in order. Each is a different way of looking at the same diff, which

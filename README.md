@@ -3,10 +3,11 @@
 An agent skill that takes committed work through a gate — adversarial review,
 then whatever tests, lint and docs commands the repository declares for itself,
 then the documentation the change made stale — and only then pushes, opens the
-change request, and waits for CI to go green.
+change request, waits for CI to go green, and answers every comment the change
+request came back with.
 
 A change request is a pull request on GitHub and a merge request on GitLab. The
-gate is the same either way: only three phases touch the forge, through four
+gate is the same either way: only four phases touch the forge, through five
 operations, and both adapters ship complete.
 
 It writes an attestation into the change request body naming the commit every
@@ -61,7 +62,9 @@ flowchart TD
     J --> K["8 change request<br/>five headings + attestation for this head"]
     K --> L["9 watch CI"]
     L -->|red| G
-    L -->|green| M["done"]
+    L -->|green| N["10 feedback<br/>every review, thread and comment"]
+    N -->|something to fix or answer| G
+    N -->|answered and resolved| M["done"]
 ```
 
 The change request body has five headings, in this order: `## Intent`,
@@ -71,7 +74,13 @@ attestation block sits under the last one, and nothing follows it.
 Every phase reports one of four statuses — `passed`, `failed`, `skipped`,
 `not-applicable` — and the verdict is `passed` only when every step is `passed`
 or `not-applicable`. A step that could not run blocks. A red pipeline blocks. A
-pipeline still running blocks. There is no fifth status to hide in.
+pipeline still running blocks. An unresolved review thread blocks. There is no
+fifth status to hide in.
+
+And one rule runs through all of it: **claim only what was verified here**.
+Every sentence the skill writes into a body, a reply or a comment is backed by
+a command run in this session, with its output read. Anything else is left out
+or labelled as not verified — never stated as fact.
 
 The review phase is the product and the rest is plumbing around it: measured
 against the tool this replaces, review produced the large majority of the fixes
@@ -79,6 +88,26 @@ and every other step produced a handful between them. The method it follows —
 what to read first, the ten passes, the rule that every finding carries a
 concrete failure scenario — is in
 [`skills/publish/references/review.md`](skills/publish/references/review.md).
+
+When the machine has [thurview](https://www.npmjs.com/package/thurview), the
+review phase uses it too: it reviews the branch against a code graph of the
+callers and tests a diff does not show, and its rows go through the same
+rounds. The skill detects it as a CLI or as an installed agent skill, brings it
+up to date before it reviews anything, and records the command it ran — pinned
+to its version — as the review step's `command`. It is optional throughout: no
+thurview, or no network to check it with, and the built-in review runs
+unchanged.
+
+### Feedback
+
+A change request with an unanswered comment on it is not published, it is
+waiting. Phase 10 reads every review, inline thread, review comment and
+conversation comment — humans and bots alike — through the forge adapter, keeps
+one checklist item per comment, and for each one either fixes it (test first
+when it is behaviour, verified locally) or replies with the evidence why not,
+then resolves the thread. A fix is new code, so it goes back through review,
+the gate, the push and a fresh attestation. It runs on a re-publish before the
+review, and again once CI is green, because that is when the reviews arrive.
 
 ## The attestation marker
 
@@ -105,12 +134,14 @@ machine-readable.
   "attested_at": "2026-09-14T11:42:07Z",
   "gate_source": ".publish.yaml",
   "steps": [
-    { "name": "review", "status": "passed", "rounds": 3, "findings": 7, "fixed": 7 },
+    { "name": "review", "status": "passed", "rounds": 3, "findings": 7, "fixed": 7,
+      "command": "npx --yes thurview@0.17.0 graph impact --base <sha> --head <sha>" },
     { "name": "lint", "status": "passed", "command": "just lint" },
     { "name": "test", "status": "passed", "command": "cargo nextest run --all" },
     { "name": "documentation", "status": "passed" },
     { "name": "ci", "status": "passed", "conclusion": "success",
-      "run_url": "<the pipeline run this verdict is about>" }
+      "run_url": "<the pipeline run this verdict is about>" },
+    { "name": "feedback", "status": "passed" }
   ],
   "verdict": "passed"
 }
@@ -246,8 +277,10 @@ that rot, and the two properties everything else depends on:
 | A skipped step and a red pipeline cannot be reported as success, and no test in this suite opts out of running | `tests/no-silent-skip.test.mjs` |
 | Every link resolves inside the installed copy, and nothing shipped is unreachable | `tests/skill-self-contained.test.mjs` |
 | The documented declaration examples use the documented keys, a step's `instructions` are text or absent, and an undeclared gate blocks | `tests/gate.test.mjs` |
-| The frontmatter, the phases in order with documentation between the gate and the commit, the install command and the repository it installs from, that the README and the skill agree on the marker and the declaration keys, and that every forge adapter gives all four operations | `tests/skill.test.mjs` |
-| The body has exactly its five headings, and the attestation sits under the last | `tests/change-request-body.test.mjs` |
+| The frontmatter, the phases in order with documentation between the gate and the commit, the install command and the repository it installs from, that the README and the skill agree on the marker and the declaration keys, and that every forge adapter gives all five operations | `tests/skill.test.mjs` |
+| The body has exactly its five headings, the attestation sits under the last, and both the body and the skill require every claim to be something run here | `tests/change-request-body.test.mjs` |
+| thurview is detected, updated and pinned before it reviews, stays optional, and lands in the attestation without a new field | `tests/thurview.test.mjs` |
+| The feedback phase reads every thread through both adapters, answers and resolves each one, and blocks while any is open | `tests/feedback.test.mjs` |
 | `All Checks` needs every other CI job and passes only when each succeeded, and `PR Title` accepts conventional commits and nothing else | `tests/ci.test.mjs` |
 
 CI reports two checks that stand for all of it, named so that branch protection
