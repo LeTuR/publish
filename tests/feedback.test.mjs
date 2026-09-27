@@ -8,8 +8,6 @@ import { SKILL_DIR, SKILL_MD, fencedBlocks, read } from "./helpers.mjs";
 
 const skill = read(SKILL_MD);
 const forgeRef = read(path.join(SKILL_DIR, "references", "forge.md"));
-const attestation = read(path.join(SKILL_DIR, "references", "attestation.md"));
-const template = read(path.join(SKILL_DIR, "templates", "attestation.md"));
 
 function phase(n, name) {
   const m = new RegExp(`## Phase ${n} - ${name}\\n([\\s\\S]*?)(?=\\n## |$)`).exec(skill);
@@ -61,21 +59,17 @@ test("each comment is one checklist item, fixed test-first or answered with evid
 test("a fix goes back through the gate and CI, and open feedback blocks", () => {
   const text = phase(10, "feedback");
   assert.match(text, /back to phase 3/, "a fix is new code and new code is unreviewed");
-  assert.match(text, /re-attest/);
+  assert.match(text, /recheck CI for the new head/);
   assert.match(text, /unresolved thread/);
   assert.match(text, /review check/, "a failing review bot is not done either");
   assert.match(text, /threads answered/, "the report must count the threads answered");
   assert.match(text, /`feedback` step/);
 });
 
-test("the block is rewritten at the end, so it carries the steps that ran last", () => {
+test("feedback keeps the body human-facing", () => {
   const text = phase(10, "feedback");
-  assert.match(
-    text,
-    /rewrite the whole block with operation 2/,
-    "a body written at phase 8 has no ci or feedback step in it until something rewrites it",
-  );
-  assert.match(text, /the head has not moved/, "rewriting for the same head is an update, not a new attestation");
+  assert.match(text, /update the Testing section/);
+  assert.doesNotMatch(text, /rewrite the whole block|re-attest/);
 });
 
 test("the feedback loop terminates rather than chasing a bot forever", () => {
@@ -110,10 +104,4 @@ test("the documented GraphQL documents are balanced", () => {
       assert.equal(opens, closes, `unbalanced GraphQL: ${m[1].slice(0, 60)}`);
     }
   }
-});
-
-test("the attestation records the feedback step after CI", () => {
-  assert.match(attestation, /The feedback step is named `feedback`, comes after CI/);
-  const names = JSON.parse(fencedBlocks(template, "json")[0]).steps.map((s) => s.name);
-  assert.deepEqual(names.slice(-2), ["ci", "feedback"]);
 });

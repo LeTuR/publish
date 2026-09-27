@@ -1,7 +1,7 @@
 <!-- The change request body - a pull request on GitHub, a merge request on
      GitLab. Fill it in and delete every comment as you answer it: what ships
      must read as prose a teammate wrote, with no template residue in it.
-     Five headings, this order and this spelling. -->
+     Four headings, this order and this spelling. -->
 
 ## Intent
 
@@ -36,11 +36,5 @@
      touched - is either left out or said plainly to be not verified. Never
      state it as fact.
 
-     Name any step that is skipped or failed, and why - the attestation records
-     it either way, and a reader should not have to parse JSON to learn that
-     something did not run. -->
-
-## Attestation
-
-<!-- The block from templates/attestation.md, filled in, and nothing after it.
-     Keep the heading: it is where a reader looks for the proof. -->
+     Name any step that is skipped or failed, and why. A reader should
+     not have to infer whether something ran. -->

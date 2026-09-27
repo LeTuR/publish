@@ -101,7 +101,7 @@ request's Testing section - which version ran, and that it could not be checked
 against the registry. An unchecked version is reported, never assumed current.
 
 **Run it** over the same range this file already told you to review, pinned to
-the version you just settled on, so that the command recorded in the attestation
+the version you just settled on, so that the command in the final report
 names the reviewer and its version:
 
 ```sh
@@ -198,7 +198,7 @@ Cap at five rounds. Still finding real defects at round five means the change is
 not ready to publish: stop, record `failed` with what is still open, and say so.
 Do not push it.
 
-Count honestly for the attestation: rounds run, findings raised, findings fixed.
+Count honestly for the final report: rounds run, findings raised, findings fixed.
 A finding you dropped as unsubstantiated was never a finding and is not
 counted; a finding you decided not to fix is counted, and the reason belongs in
 the pull request body where a reviewer will see it.

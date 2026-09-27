@@ -1,7 +1,7 @@
 // thurview is a second reviewer the review phase uses when it can: a code graph
 // of the callers and tests a diff does not show. It is optional, it is kept
-// current before it runs, and the attestation says which reviewer ran and at
-// which version - without a field the v1 contract does not define.
+// current before it runs, and the final report says which reviewer ran and at
+// which version.
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -9,7 +9,6 @@ import { SKILL_DIR, SKILL_MD, fencedBlocks, read } from "./helpers.mjs";
 
 const skill = read(SKILL_MD);
 const review = read(path.join(SKILL_DIR, "references", "review.md"));
-const attestation = read(path.join(SKILL_DIR, "references", "attestation.md"));
 
 /** The thurview section of review.md, up to the next second-level heading. */
 function thurviewSection() {
@@ -78,14 +77,7 @@ test("thurview's findings go through the same rounds and the same failure-scenar
   assert.match(section, /failure scenario/);
 });
 
-test("the attestation records which reviewer ran, and its version, within v1", () => {
-  const prose = attestation.replace(/\s+/g, " ");
-  assert.match(
-    prose,
-    /The review step's `command` is the thurview command that ran/,
-    "the field contract must say where the reviewer and its version are recorded",
-  );
-  assert.match(prose, /npx --yes thurview@\d+\.\d+\.\d+ graph impact/, "no worked example of the command");
-  assert.match(prose, /built-in review .*no `command`/);
-  assert.doesNotMatch(attestation, /"reviewer"/, "a new field is a new shape, and v1 does not define one");
+test("the final report records which reviewer ran and its version", () => {
+  assert.match(thurviewProse(), /command in the final report/);
+  assert.match(thurviewSection(), /thurview@<version> graph impact/);
 });

@@ -11,8 +11,8 @@ Everything phases 1, 8, 9 and 10 need, and nothing else:
 | # | operation | why the skill needs it |
 | --- | --- | --- |
 | 1 | **default branch** | what to rebase onto and target, when the declaration does not say |
-| 2 | **open or update a change request**, body from a file | phase 8; the body is where the attestation lives |
-| 3 | **the head commit** the change request would merge | the value the attestation must name to be current |
+| 2 | **open or update a change request**, body from a file | phase 8; human-facing intent, change, risk and testing |
+| 3 | **the head commit** the change request would merge | verify the checked commit is still current |
 | 4 | **watch the pipeline** to a terminal state | phase 9; a pipeline still running is not a green one |
 | 5 | **read and answer the feedback** on a change request | phase 10; a thread nobody answered is not a published change |
 
@@ -85,20 +85,9 @@ gh pr comment <number> --body-file <path>                       # 5, answer a co
 literal string `@<path>` instead, so write the reply to a file and pass it
 with `-F`.
 
-Verifying an attestation against the head:
-
-```sh
-gh pr view <number> --json headRefOid,body -q \
-  '.headRefOid as $head
-   | (.body | [capture("\"head_sha\"\\s*:\\s*\"(?<s>[0-9a-f]{7,40})\"").s] | first) as $attested
-   | if $attested == null then "no attestation"
-     elif $attested == $head then "current"
-     else "stale" end'
-```
-
 ## GitLab, through `glab`
 
-Same four operations, GitLab's own field names: the head is `sha`, the body is
+Same five operations, GitLab's own field names: the head is `sha`, the body is
 `description`. `-R` takes the project's full URL so that a self-hosted instance
 is asked and not gitlab.com.
 
@@ -131,25 +120,13 @@ glab mr note <number> --message "<text>"                               # 5, a co
 rather than a reviewer. `:fullpath` is filled in from `origin`; pass
 `-R https://<host>/<group>/<project>` when `origin` is not the project to read.
 
-Verifying an attestation against the head:
-
-```sh
-glab mr view <number> -R https://<host>/<group>/<project> -F json --jq \
-  '.sha as $head
-   | (.description | [capture("\"head_sha\"\\s*:\\s*\"(?<s>[0-9a-f]{7,40})\"").s] | first) as $attested
-   | if $attested == null then "no attestation"
-     elif $attested == $head then "current"
-     else "stale" end'
-```
-
 Two differences that change behaviour rather than spelling:
 
 - **Squash.** A GitLab project can forbid squashing (`squash_option: never`).
   The skill does not merge, so this is not its problem to solve, but say it in
   the change request if the repository's own convention assumes a squash.
 - **`--description` takes a string, not a file.** Read the file in the command,
-  as above. Do not shorten the body to fit an argument you found awkward - the
-  attestation is part of it.
+  as above. Do not shorten the body to fit an argument you found awkward.
 
 ## Any other forge
 
@@ -159,7 +136,7 @@ and nothing downstream can verify a body nobody wrote.
 
 Adding a forge means giving all five operations, with a way to read the head as
 a full commit sha and a way to wait for a pipeline rather than sample it. A
-forge that cannot do operation 3 cannot carry an attestation at all, a forge
+forge that cannot do operation 3 cannot verify the checked head, a forge
 that cannot do operation 4 makes phase 9 permanently `skipped`, and one that
 cannot do operation 5 makes phase 10 permanently `skipped` - and each of those
 blocks.

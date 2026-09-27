@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { MARKER, ROOT, SKILL_DIR, SKILL_MD, fencedBlocks, frontmatter, read, shippedFiles } from "./helpers.mjs";
+import { ROOT, SKILL_DIR, SKILL_MD, fencedBlocks, frontmatter, read, shippedFiles } from "./helpers.mjs";
 
 const skill = read(SKILL_MD);
 const readme = read(path.join(ROOT, "README.md"));
@@ -36,7 +36,7 @@ test("the description names the triggers and the precedence rule", () => {
 
 test("the body keeps the promises the description makes", () => {
   const { description } = frontmatter(skill);
-  for (const phase of ["rebase", "review", "push", "change request", "attestation"]) {
+  for (const phase of ["rebase", "review", "push", "change request", "feedback", "report"]) {
     assert.ok(description.toLowerCase().includes(phase), `the description omits ${phase}`);
     assert.ok(skill.toLowerCase().includes(phase), `the body omits ${phase}`);
   }
@@ -142,7 +142,7 @@ test("every shipped adapter implements all five operations", () => {
     for (const op of ["# 1", "# 2", "# 3", "# 4", "# 5"]) {
       assert.ok(body.includes(op), `the ${cli} adapter has no command marked ${op}`);
     }
-    assert.match(body, /head_sha/, `the ${cli} adapter documents no way to verify an attestation`);
+    assert.match(body, /# 3/, `the ${cli} adapter documents no way to read the head`);
     assert.ok(commandsIn(body).has(cli), `the ${cli} adapter's commands do not run ${cli}`);
   }
 });
@@ -177,18 +177,12 @@ test("the push is leased, never forced", () => {
   assert.match(skill, /`--force-with-lease` and never `--force`/);
 });
 
-test("the README and the skill agree on the marker", () => {
-  assert.ok(readme.includes(MARKER), "the README must state the marker a consumer configures");
-  assert.ok(
-    readme.includes("\n```\n" + MARKER + "\n```\n"),
-    "the marker must appear alone in a fenced block, copyable without ceremony",
-  );
-  for (const rel of shippedFiles().filter((f) => f.endsWith(".md"))) {
-    const text = read(path.join(SKILL_DIR, rel));
-    for (const m of text.matchAll(/publish-attestation\/v\d+/g)) {
-      assert.equal(m[0], MARKER, `${rel} names a different marker version`);
-    }
+test("the README and skill describe the same four-section body", () => {
+  for (const heading of ["Intent", "What Changed", "Risk Assessment", "Testing"]) {
+    assert.ok(readme.includes(`## ${heading}`));
+    assert.ok(skill.includes(`\`## ${heading}\``));
   }
+  assert.doesNotMatch(readme, /publish-attestation|head_sha|## Attestation/);
 });
 
 test("the README and the skill agree on how a repository declares its gate", () => {
