@@ -25,7 +25,7 @@ test("there is a skill, laid out where the installer looks", () => {
   assert.ok(fs.existsSync(SKILL_MD), "skills/publish/SKILL.md is missing");
   assert.ok(markdown.length >= 4, "the skill ships fewer files than it documents");
   assert.ok(shippedFiles().includes("templates/change-request-body.md"));
-  assert.ok(shippedFiles().includes("templates/attestation.md"));
+  assert.ok(shippedFiles().includes("references/forge.md"));
 });
 
 test("every link in the skill resolves, and none escapes the skill directory", () => {

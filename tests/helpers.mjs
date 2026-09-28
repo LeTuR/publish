@@ -13,8 +13,6 @@ export const SKILL_DIR = path.join(ROOT, "skills", "publish");
 export const SKILL_MD = path.join(SKILL_DIR, "SKILL.md");
 export const TESTS_DIR = path.join(ROOT, "tests");
 
-/** The exact marker a consumer greps the pull request body for. */
-export const MARKER = "publish-attestation/v1";
 
 /** The closed set of step statuses. A fifth one is a bug, not a feature. */
 export const STATUSES = ["passed", "failed", "skipped", "not-applicable"];

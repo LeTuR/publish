@@ -87,7 +87,7 @@ test("an undeclared repository falls back in a stated order and never silently",
   for (const source of ["AGENTS.md", "CONTRIBUTING.md", "justfile", "package.json"]) {
     assert.ok(section.includes(source), `the fallback order does not mention ${source}`);
   }
-  assert.match(section, /`gate_source` in the attestation says so/, "an inferred gate must be labelled as one");
+  assert.match(section, /name the gate source in the final report/, "an inferred gate must be labelled as one");
   assert.match(section, /discovered:/, "the reference must show what an inferred gate_source looks like");
   assert.match(
     section,

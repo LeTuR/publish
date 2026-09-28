@@ -46,7 +46,7 @@ ci:
 | `base` | no | The branch to rebase onto and open the change request against. Default: the remote's default branch. |
 | `review.rules` | no | Extra files the review must read, beyond the ones it finds on its own. Paths relative to the repository root. |
 | `gate` | yes | An ordered list of steps. Run them in the order written. |
-| `gate[].name` | yes | The step's name in the attestation. Free text; `test`, `lint` and `docs` are the conventional ones, and a repository whose whole gate is one script is free to call it `check`. |
+| `gate[].name` | yes | The step's name in the final report. Free text; `test`, `lint` and `docs` are the conventional ones, and a repository whose whole gate is one script is free to call it `check`. |
 | `gate[].run` | yes | One shell command, or a list run in order. Run from the repository root. |
 | `gate[].fix` | no | A command that applies the mechanical fixes this step can apply. Run once on failure, before re-running `run`. |
 | `gate[].instructions` | no | Text: the repository's own notes on this step. The skill hands it, as written, to whoever runs the step, reads its failure or fixes it. Absent: the step is handled with no notes. |
@@ -110,7 +110,7 @@ commands.
    `scripts.lint`, `Cargo.toml` (then `cargo test`), `pyproject.toml` (then the
    test runner it configures).
 
-Whatever you used, `gate_source` in the attestation says so: `.publish.yaml`,
+Whatever you used, name the gate source in the final report: `.publish.yaml`,
 or `discovered:AGENTS.md`, or `discovered:justfile`, and the steps carry the
 commands you actually ran. A reader has to be able to tell a declared gate from
 an inferred one.

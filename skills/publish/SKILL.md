@@ -1,6 +1,6 @@
 ---
 name: publish
-description: Take committed work through a gate and publish it - rebase, adversarial review against the repository's own rules, then whatever gate that repository declares (tests, lint, docs), then bring the documentation the change made stale up to date, then commit the fixes, push, open the change request, watch CI, and write an attestation naming the commit it ran on. Works on any forge with an adapter - GitHub and GitLab ship with it. Load this whenever someone asks to push, publish, ship, land, open a PR or MR, or get a branch merged, and whenever a task says to publish its own work. Do not load it when the repository ships its own publish, ship or release skill - that one wins.
+description: Take committed work through a gate and publish it - rebase, adversarial review against the repository's own rules, then whatever gate that repository declares (tests, lint, docs), then bring the documentation the change made stale up to date, then commit the fixes, push, open the change request, watch CI, answer feedback, and report the checked commit and results to the requester. Works on any forge with an adapter - GitHub and GitLab ship with it. Load this whenever someone asks to push, publish, ship, land, open a PR or MR, or get a branch merged, and whenever a task says to publish its own work. Do not load it when the repository ships its own publish, ship or release skill - that one wins.
 license: MIT
 ---
 
@@ -9,18 +9,13 @@ license: MIT
 Committed work goes out through one door. This skill is the door: it reviews the
 change, runs the gate the repository declares for itself, pushes, opens the
 change request, and waits for continuous integration. It reports done only when
-the pipeline is green, and it writes into the change request body an attestation
-naming the exact commit every one of those steps ran against.
-
-The attestation is the point. A green pipeline on a commit nobody will merge
-proves nothing, so the attestation names `head_sha`, and a reader who finds a
-different head knows the proof is stale and does not apply. Never write that
-field by hand or edit it afterwards - see
-[`references/attestation.md`](references/attestation.md).
+the pipeline is green for the current head. The change request body explains
+the intent, change, risk and testing in plain language. The final report names
+the checked head and the gate results.
 
 A change request is a pull request on GitHub and a merge request on GitLab. The
-gate is the same either way; only phases 1, 8, 9 and 10 touch the forge, and they
-go through the adapter table in [`references/forge.md`](references/forge.md).
+gate is the same either way; only phases 1, 8, 9 and 10 touch the forge, and they go
+through the adapter table in [`references/forge.md`](references/forge.md).
 
 ```
   "ship this"
@@ -38,20 +33,19 @@ go through the adapter table in [`references/forge.md`](references/forge.md).
   5 documentation   what the change made stale, committed on its own
   6 commit          the fixes review and the gate produced
   7 push
-  8 change request  five headings, the attestation for the pushed head last
+  8 change request  four human-facing headings
   9 CI              watch it; a red pipeline is not done
-      │
  10 feedback   ◀─┐  every review, thread and comment, answered and resolved
       │          │
-      └─ fixes ──┘  back through review, gate, push, re-attest
+      └─ fixes ──┘  back through review, gate, push, CI
       │
       ▼
-  green, the attestation names the head that is green, and nothing is unanswered
+  green CI and feedback for the current head
 ```
 
-Every phase below reports one of four statuses, and the report at the end turns
-them into a verdict. There is no fifth status and no way to leave a phase
-unreported: `passed`, `failed`, `skipped`, `not-applicable`.
+Every phase below reports one of four statuses, and the report turns them into a
+verdict. There is no fifth status and no way to leave a phase unreported:
+`passed`, `failed`, `skipped`, `not-applicable`.
 
 | status | means |
 | --- | --- |
@@ -81,7 +75,7 @@ printed.
 - Something that was not verified is left out, or it is **labelled as not
   verified** in the same sentence that makes it. It is **never stated as fact**.
 - "The tests pass" means they were run here and they passed. A step that was
-  skipped is named as skipped, in the body and in the attestation both.
+  skipped is named as skipped in the body and final report.
 - A reply on a thread quotes the evidence briefly - the command and the line of
   output that settles the point, not a promise about the next run.
 - A claim about another platform, another toolchain or another forge than the
@@ -140,7 +134,7 @@ git remote get-url origin                # which forge this is
 - **The base branch** is, in order: `base:` in the gate declaration, else the
   forge's default branch (operation 1). Fall back to
   `git symbolic-ref refs/remotes/origin/HEAD` and then to `main` only if the
-  forge cannot be asked, and say in the attestation which one you used.
+  forge cannot be asked, and say in the final report which one you used.
 
 Then read the gate declaration -
 [`references/gate.md`](references/gate.md) has the file, the keys and the
@@ -194,7 +188,7 @@ before it runs, and what to do when the registry cannot be reached. It is
 optional and it is never a requirement: without it, the review above is the
 review, and the step passes on its own merits.
 
-Record for the attestation: rounds run, findings raised, findings fixed, and -
+Record for the final report: rounds run, findings raised, findings fixed, and -
 when thurview ran - the command it ran, pinned to its version, as the review
 step's `command`.
 
@@ -280,8 +274,8 @@ git push --force-with-lease origin HEAD
 lease is what stops the push from erasing a commit somebody else put on it while
 you were reviewing.
 
-Then capture the head that is now on the remote. **This value is the
-attestation.**
+Capture the head that is now on the remote for the final report and
+exact-head checks.
 
 ```sh
 git rev-parse HEAD
@@ -292,14 +286,10 @@ git rev-parse HEAD
 Start from
 [`templates/change-request-body.md`](templates/change-request-body.md), fill it
 in, and delete every instruction comment as you answer it. What ships must read
-as prose a teammate wrote, under exactly its five headings: `## Intent`,
-`## What Changed`, `## Risk Assessment`, `## Testing`, `## Attestation`.
-
-Put the attestation block from
-[`templates/attestation.md`](templates/attestation.md) under `## Attestation`,
-last, filled from what each phase recorded and from the `git rev-parse HEAD` of
-phase 7.
-[`references/attestation.md`](references/attestation.md) has the field contract.
+as prose a teammate wrote, under exactly four headings: `## Intent`,
+`## What Changed`, `## Risk Assessment`, `## Testing`. State any skipped
+checks honestly. Do not put an attestation heading, JSON block, marker or
+hidden attestation comment in the body or in a comment.
 
 Open it with operation 2 from your adapter, or update the one that is already
 open from this branch rather than opening a second one.
@@ -317,10 +307,8 @@ failure mode that matters, so it has one rule and the rule has no exceptions:
 
 - **Green.** Every required check succeeded. Record `passed` with the run URL.
 - **Red.** Read the failing job's log, fix the cause, and go back to phase 3 -
-  the fix is new code. Then push again, and **re-attest**: a new commit makes
-  the attestation in the body name a commit that is no longer the head, and a
-  stale attestation authorises nothing. Rewrite the whole block with operation 2,
-  never by editing `head_sha` alone.
+  the fix is new code. Then push again and recheck CI for the new head. Update the body if
+  its testing account changed.
 - **No pipeline exists at all.** Only `ci.required: false` in the declaration
   makes that `not-applicable`. Without it, a repository with no checks is
   `skipped`, and the verdict is `blocked` until someone says in the declaration
@@ -366,7 +354,7 @@ For each item, in this order:
    says so plainly instead. Then **resolve** the thread.
 
 **A fix is new code**, so it goes **back to phase 3** and forward from there:
-review it, run the gate, commit, push, and **re-attest** for the new head. Reply
+review it, run the gate, commit, push, and recheck CI for the new head. Reply
 and resolve after that push, so the thread names a commit the forge already has.
 
 The change request is not done while:
@@ -389,12 +377,8 @@ substantive new findings, stop: record the `feedback` step `failed`, say what is
 still open, and hand it back - a change request that grows a new defect every
 time it is touched is not one more round away from ready.
 
-When the phase ends, **rewrite the whole block with operation 2** so the body
-carries the steps that ran after phase 8 wrote it - `ci` and `feedback` both.
-No commit was pushed for that rewrite, so **the head has not moved**: this is
-the same attestation with its last two steps filled in, not a new one. Push
-anything at all and the rule from phase 9 applies instead - re-attest for the
-new head.
+When the phase ends, update the Testing section if its account of checks or
+feedback changed. Keep the body human-facing.
 
 Record a `feedback` step, and report the number of **threads answered** in the
 same breath as the verdict.
@@ -404,14 +388,13 @@ same breath as the verdict.
 Compute the verdict, then say it in one line before anything else.
 
 - Every step `passed` or `not-applicable` → verdict `passed` → report the change
-  request URL, that CI is green, and how many threads phase 10 answered.
+  request URL and that CI is green.
 - Anything else → verdict `blocked` → **say it is not done**, name every step
   that is `failed` or `skipped`, and say what would unblock each one. The change
   request may well be open; that is not the same claim as published.
 
-Before you report `passed`, check the attestation still names the head. The
-verification command for your forge is in
-[`references/forge.md`](references/forge.md), beside that adapter's operations;
-it answers `current`, `stale` or `no attestation`, and only `current` lets you
-report done. Anything else means go back to phase 8 and rewrite the body for the
-real head, the block under `## Attestation` included.
+Before reporting `passed`, read the change request head using operation 3 of
+[`references/forge.md`](references/forge.md). It must equal the pushed commit
+whose gate and CI results you checked. If it differs, review and run the gate
+and CI again for that head. Report the checked head and commands to the requester,
+not as a machine block in the change request.

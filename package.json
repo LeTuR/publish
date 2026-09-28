@@ -1,7 +1,7 @@
 {
   "name": "publish",
   "version": "0.1.0",
-  "description": "An agent skill that takes committed work through a gate - review, tests, lint, docs - then pushes, opens the pull request, waits for CI, and attests the commit it ran on.",
+  "description": "An agent skill that takes committed work through a gate - review, tests, lint, docs - then pushes, opens the pull request, waits for CI, and reports the checked commit and results.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -22,6 +22,6 @@
     "agent-skill",
     "skills",
     "ci",
-    "attestation"
+    "pull-request"
   ]
 }
