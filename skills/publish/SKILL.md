@@ -329,8 +329,22 @@ same round as everything else.
 **Read everything, through operation 5 of your adapter.** Not the unresolved
 ones, not the ones addressed to you: **every** review, inline thread, review
 comment and conversation comment on this change request, from humans and bots
-alike, with the thread each one belongs to and whether it is resolved. A bot's
-summary is a review like any other.
+alike, your own account's included, with the thread each one belongs to and
+whether it is resolved. Read [`references/feedback.md`](references/feedback.md)
+now: its ledger turns the adapter's answer into one line per item, on any
+forge, and it says how to read a review bot's summary.
+
+**A summary is feedback too.** Do not stop at "no unresolved threads": a
+thurview-pr-review or Greptile summary below 5/5, one that still lists open
+findings, or one whose `Next:` line asks for a fix is open feedback, and its
+findings are items like any thread.
+
+**Wait for the reviewers who come after CI.** Review bots post minutes after a
+push. When CI is green - not on the pass phase 1 sends a re-publish on, before
+anything was pushed - keep reading for up to `feedback.wait` from the gate
+declaration, until every summary names the current head and no review check is
+pending; the reference has the rule. A score given to an older head is not a
+score for this one.
 
 **Keep a checklist, one item per comment.** Write it down before you fix
 anything: a comment worked from memory is the one that gets answered with a
@@ -371,11 +385,14 @@ too - it ran, and there was nothing to answer.
 
 A point that was **already answered** on an earlier pass is answered: reply
 pointing at the thread that settled it and resolve the new one, rather than
-fixing the same thing twice. A review bot re-reads the branch on every push, so
-without that rule this phase never ends. If a **third pass** still brings
-substantive new findings, stop: record the `feedback` step `failed`, say what is
-still open, and hand it back - a change request that grows a new defect every
-time it is touched is not one more round away from ready.
+fixing the same thing twice. Keep looping until each review bot is settled -
+thurview at 5/5 with No open findings - or every point it still raises is
+refuted with evidence. **Two rounds on the same point** is the cap: if it is
+still raised, stop, record the `feedback` step `failed`, and report the point
+with both answers. And if a **third pass** - the third push this phase made -
+still brings substantive new findings, stop the same way: a change request that
+grows a new defect every time it is touched is not one more round away from
+ready.
 
 When the phase ends, update the Testing section if its account of checks or
 feedback changed. Keep the body human-facing.
@@ -398,3 +415,8 @@ Before reporting `passed`, read the change request head using operation 3 of
 whose gate and CI results you checked. If it differs, review and run the gate
 and CI again for that head. Report the checked head and commands to the requester,
 not as a machine block in the change request.
+
+Report the review state at that head from a last read of the ledger: the
+thurview score and the head it reviewed, Greptile's score, head and check, and
+the threads resolved after a fix, answered without one, and still open. A
+reviewer that never posted is reported as never posted, not as clean.

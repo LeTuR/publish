@@ -105,3 +105,15 @@ test("nothing the skill loads is optional-if-present", () => {
   assert.match(text, /Read it now/, "the gate reference must be loaded, not offered");
   assert.match(text, /Read \[`references\/review\.md`\]\(references\/review\.md\) before the first round/);
 });
+
+test("every code fence stands on a line of its own", () => {
+  // Text after a closing fence keeps the block open, so the rest of the file
+  // renders as code and an agent reading the rendered page loses it.
+  const offences = [];
+  for (const rel of markdown) {
+    for (const [i, line] of read(path.join(SKILL_DIR, rel)).split("\n").entries()) {
+      if (/```/.test(line) && !/^\s*```[\w-]*\s*$/.test(line)) offences.push(`${rel}:${i + 1}`);
+    }
+  }
+  assert.deepEqual(offences, [], "a fence with text beside it never closes");
+});

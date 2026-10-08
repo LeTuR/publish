@@ -10,7 +10,7 @@ import { ROOT, SKILL_DIR, SKILL_MD, STEP_KEYS, fencedBlocks, parseDeclaration, r
 const GATE_MD = path.join(SKILL_DIR, "references", "gate.md");
 const reference = read(GATE_MD);
 
-const TOP_LEVEL = ["version", "forge", "base", "review", "gate", "ci"];
+const TOP_LEVEL = ["version", "forge", "base", "review", "gate", "ci", "feedback"];
 
 
 /** Every `.publish.yaml` the reference shows, parsed. */
@@ -27,7 +27,7 @@ test("the reference documents the file, and it is .publish.yaml at the root", ()
 test("every documented key is in the table, and every table key is documented", () => {
   const table = new Set();
   for (const m of reference.matchAll(/^\| `([\w.[\]]+)` \|/gm)) table.add(m[1]);
-  const documented = ["version", "forge", "base", "gate", "review.rules", "gate[].name", "gate[].run", "gate[].fix", "gate[].instructions", "ci.required", "ci.timeout"];
+  const documented = ["version", "forge", "base", "gate", "review.rules", "gate[].name", "gate[].run", "gate[].fix", "gate[].instructions", "ci.required", "ci.timeout", "feedback.wait"];
   for (const key of documented) {
     assert.ok(table.has(key), `the key table does not describe ${key}`);
   }

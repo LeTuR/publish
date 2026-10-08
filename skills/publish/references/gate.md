@@ -35,6 +35,9 @@ gate:
 ci:
   required: true
   timeout: 30m
+
+feedback:
+  wait: 15m
 ```
 
 ## The keys
@@ -52,6 +55,7 @@ ci:
 | `gate[].instructions` | no | Text: the repository's own notes on this step. The skill hands it, as written, to whoever runs the step, reads its failure or fixes it. Absent: the step is handled with no notes. |
 | `ci.required` | no | Default `true`. `false` declares that this repository genuinely has no continuous integration. |
 | `ci.timeout` | no | Default `30m`. How long to wait before calling the pipeline `skipped` rather than green. |
+| `feedback.wait` | no | Default `15m`. How long to keep reading feedback after CI is green, for review bots that post after it. See [`feedback.md`](feedback.md). |
 
 `gate: []` - an empty list - is a repository stating it has no mechanical gate.
 That is allowed, and it records `not-applicable`. Leaving `gate` out entirely is
@@ -149,4 +153,4 @@ Three things to check as you read, because each is a silent failure otherwise:
   empty value is a broken declaration too - report it the same way, rather
   than turning it into something to follow.
 
-`review` and `ci` are not `gate[]` entries and take no `instructions`.
+`review`, `ci` and `feedback` are not `gate[]` entries and take no `instructions`.

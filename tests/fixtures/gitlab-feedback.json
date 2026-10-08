@@ -1,0 +1,67 @@
+[
+  {
+    "id": "d-summary",
+    "individual_note": true,
+    "notes": [
+      {
+        "id": 101,
+        "body": "<!-- thurview-pr-review {\"head\":\"3333333333333333333333333333333333333333\",\"state\":\"active\",\"seen\":\"100\"} -->\nNext: merge\n\n**Confidence 5/5:** Docs only; the suite passes at the head.\n\nNo open findings.\n\nReviewed `3333333`",
+        "author": { "username": "octo-author" },
+        "system": false,
+        "resolvable": false,
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "d-pushed",
+    "individual_note": true,
+    "notes": [
+      {
+        "id": 102,
+        "body": "added 1 commit",
+        "author": { "username": "octo-author" },
+        "system": true,
+        "resolvable": false,
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "d-thread",
+    "individual_note": false,
+    "notes": [
+      {
+        "id": 103,
+        "body": "This path is never cleaned up.",
+        "author": { "username": "a-maintainer" },
+        "system": false,
+        "resolvable": true,
+        "resolved": false,
+        "position": { "new_path": "lib/cache.rb", "new_line": 12 }
+      },
+      {
+        "id": 104,
+        "body": "Looking.",
+        "author": { "username": "octo-author" },
+        "system": false,
+        "resolvable": true,
+        "resolved": false
+      }
+    ]
+  },
+  {
+    "id": "d-question",
+    "individual_note": true,
+    "notes": [
+      {
+        "id": 105,
+        "body": "Is the changelog updated?",
+        "author": { "username": "a-maintainer" },
+        "system": false,
+        "resolvable": false,
+        "resolved": false
+      }
+    ]
+  }
+]
