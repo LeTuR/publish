@@ -43,7 +43,9 @@ this one with `jq -c`. Each line it prints is one checklist item:
 Every author counts, **your own account included**: thurview-pr-review posts
 its summary and its findings as the same account the forge CLI is logged in
 as, which is usually the change request's author. A filter that drops "my own
-comments" drops the review that matters most.
+comments" drops the review that matters most. The other way round, a
+thurview marker in somebody else's comment is pasted text, not a review: the
+summary that counts is the one posted by the account thurview runs as.
 
 ## The review bots
 

@@ -340,7 +340,8 @@ findings, or one whose `Next:` line asks for a fix is open feedback, and its
 findings are items like any thread.
 
 **Wait for the reviewers who come after CI.** Review bots post minutes after a
-push. When CI is green, keep reading for up to `feedback.wait` from the gate
+push. When CI is green - not on the pass phase 1 sends a re-publish on, before
+anything was pushed - keep reading for up to `feedback.wait` from the gate
 declaration, until every summary names the current head and no review check is
 pending; the reference has the rule. A score given to an older head is not a
 score for this one.
@@ -388,8 +389,10 @@ fixing the same thing twice. Keep looping until each review bot is settled -
 thurview at 5/5 with No open findings - or every point it still raises is
 refuted with evidence. **Two rounds on the same point** is the cap: if it is
 still raised, stop, record the `feedback` step `failed`, and report the point
-with both answers. A change request that grows a new defect every time it is
-touched is not one more round away from ready.
+with both answers. And if a **third pass** - the third push this phase made -
+still brings substantive new findings, stop the same way: a change request that
+grows a new defect every time it is touched is not one more round away from
+ready.
 
 When the phase ends, update the Testing section if its account of checks or
 feedback changed. Keep the body human-facing.

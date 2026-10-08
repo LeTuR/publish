@@ -153,4 +153,4 @@ Three things to check as you read, because each is a silent failure otherwise:
   empty value is a broken declaration too - report it the same way, rather
   than turning it into something to follow.
 
-`review` and `ci` are not `gate[]` entries and take no `instructions`.
+`review`, `ci` and `feedback` are not `gate[]` entries and take no `instructions`.

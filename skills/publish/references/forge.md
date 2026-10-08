@@ -125,7 +125,8 @@ Operation 5, in GitLab's own words: a thread is a discussion, a comment is a
 note, and a conversation comment is a discussion holding one note.
 
 ```sh
-glab api --paginate 'projects/:fullpath/merge_requests/<number>/discussions'
+glab api --paginate 'projects/:fullpath/merge_requests/<number>/discussions' \
+  | jq -s add                                                          # 5, one array however it pages
 glab api -X POST \
   'projects/:fullpath/merge_requests/<number>/discussions/<discussion-id>/notes' \
   -f body=@<path>                                                      # 5, reply

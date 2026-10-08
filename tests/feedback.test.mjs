@@ -5,7 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { SKILL_DIR, SKILL_MD, fencedBlocks, read } from "./helpers.mjs";
+import { SKILL_DIR, SKILL_MD, TESTS_DIR, fencedBlocks, read } from "./helpers.mjs";
 
 const skill = read(SKILL_MD);
 const forgeRef = read(path.join(SKILL_DIR, "references", "forge.md"));
@@ -76,7 +76,8 @@ test("feedback keeps the body human-facing", () => {
 test("the feedback loop terminates rather than chasing a bot forever", () => {
   const text = phase(10, "feedback");
   assert.match(text, /already answered/, "a point answered once is answered, not re-fixed");
-  assert.match(text, /Two rounds on the same point/, "the loop needs a cap, as the review phase has one");
+  assert.match(text, /Two rounds on the same point/, "one point is not chased forever");
+  assert.match(text, /third pass/, "nor is a stream of new points: the loop needs a cap, as the review phase has one");
   assert.match(text, /`failed`/, "a loop that will not settle ends as a step that blocks");
 });
 
@@ -113,7 +114,7 @@ test("the documented GraphQL documents are balanced", () => {
 // that drifts from the forge's shape fails here rather than in a publish that
 // reports a change request settled while a reviewer is still waiting.
 const feedbackRef = read(path.join(SKILL_DIR, "references", "feedback.md"));
-const FIXTURES = path.join(path.dirname(SKILL_DIR), "..", "tests", "fixtures");
+const FIXTURES = path.join(TESTS_DIR, "fixtures");
 
 function onlyJq(text, where) {
   const blocks = fencedBlocks(text, "jq");
@@ -195,6 +196,7 @@ test("a bot summary's open findings are open feedback, not only its threads", ()
 test("feedback waits, bounded, for reviewers that post after CI", () => {
   const text = phase(10, "feedback");
   assert.match(text, /`feedback\.wait`/, "the wait must be configurable");
+  assert.match(text, /not on the pass phase 1 sends/, "the pre-review pass of a re-publish does not wait");
   assert.match(text, /current head/);
   assert.match(feedbackRef, /`feedback\.wait`/);
   assert.match(feedbackRef, /`current`/, "the summary's head marker says whether it read this head");
