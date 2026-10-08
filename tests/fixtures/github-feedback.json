@@ -1,0 +1,85 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "headRefOid": "2222222222222222222222222222222222222222",
+        "reviewThreads": {
+          "nodes": [
+            {
+              "id": "PRRT_open",
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "src/upload.ts",
+              "line": 42,
+              "comments": {
+                "nodes": [
+                  {
+                    "author": { "login": "octo-author" },
+                    "body": "<!-- thurview-finding {\"id\":\"3f2a9c1b07\",\"category\":\"bug\",\"severity\":\"blocking\"} -->\n**Bug · blocking:** The retry loop never stops on a 4xx.\nReturn the response on any status below 500.",
+                    "url": "https://github.com/owner/repo/pull/7#discussion_r1"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "PRRT_done",
+              "isResolved": true,
+              "isOutdated": true,
+              "path": "src/retry.ts",
+              "line": null,
+              "comments": {
+                "nodes": [
+                  {
+                    "author": { "login": "greptile-apps" },
+                    "body": "**P2** The backoff is not capped.",
+                    "url": "https://github.com/owner/repo/pull/7#discussion_r2"
+                  },
+                  {
+                    "author": { "login": "octo-author" },
+                    "body": "Capped at 30s in 1111111. `npm test` -> `# pass 12`.",
+                    "url": "https://github.com/owner/repo/pull/7#discussion_r3"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "reviews": {
+          "nodes": [
+            {
+              "author": { "login": "a-maintainer" },
+              "state": "CHANGES_REQUESTED",
+              "body": "Please add a test for the 4xx path.",
+              "url": "https://github.com/owner/repo/pull/7#pullrequestreview-1"
+            },
+            {
+              "author": { "login": "octo-author" },
+              "state": "COMMENTED",
+              "body": "",
+              "url": "https://github.com/owner/repo/pull/7#pullrequestreview-2"
+            }
+          ]
+        },
+        "comments": {
+          "nodes": [
+            {
+              "author": { "login": "octo-author" },
+              "body": "<!-- thurview-pr-review {\"head\":\"1111111111111111111111111111111111111111\",\"state\":\"active\",\"seen\":\"0\"} -->\nNext: @octo-author — fix the blocking finding.\n\n**Confidence 2/5:** The retry loop never stops on a 4xx.\n\n| Open findings | blocking | non-blocking | nit |\n| --- | --- | --- | --- |\n| Bug | 1 | 0 | 0 |\n\nReviewed `1111111` · [Full review](https://github.com/owner/repo/pull/7) · [Markdown export](https://github.com/owner/repo/pull/7/files)",
+              "url": "https://github.com/owner/repo/pull/7#issuecomment-1"
+            },
+            {
+              "author": { "login": "greptile-apps" },
+              "body": "<!-- greptile_summary -->\n\n<h2>Confidence Score: 4/5</h2>\n\nThe changes appear safe to merge.\n\n<!-- greptile_confidence_score:4 -->\n<sub>Reviews (2) · Last reviewed commit: [\"fix: cap the backoff\"](https://github.com/owner/repo/commit/2222222222222222222222222222222222222222)</sub>",
+              "url": "https://github.com/owner/repo/pull/7#issuecomment-2"
+            },
+            {
+              "author": { "login": "a-maintainer" },
+              "body": "Does this change the default timeout?",
+              "url": "https://github.com/owner/repo/pull/7#issuecomment-3"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -53,6 +53,7 @@ gh api graphql -F owner='{owner}' -F repo='{repo}' -F number=<number> -f query='
   query($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
+        headRefOid
         reviewThreads(first: 100) {
           nodes { id isResolved isOutdated path line
                   comments(first: 100) { nodes { author { login } body url } } } }
@@ -67,6 +68,24 @@ gh api graphql -F owner='{owner}' -F repo='{repo}' -F number=<number> -f query='
 review check reads. `reviews` carries the review bodies, a bot's summary among
 them, and `comments` is the conversation below the change request. Past a
 hundred of any of them, page with that connection's `pageInfo` and `after`.
+
+Pipe the response through this filter, then through the ledger in
+[`feedback.md`](feedback.md). It keeps every thread and comment, and every
+review that says something: a review with an empty body that only commented is
+the envelope its inline threads came in, and those threads are already listed.
+
+```jq
+.data.repository.pullRequest
+| {head: .headRefOid,
+   threads: [.reviewThreads.nodes[]
+     | {id, resolved: .isResolved,
+        where: (.path + (if .line then ":\(.line)" else "" end)),
+        notes: [.comments.nodes[] | {author: .author.login, body, url}]}],
+   notes: ([.reviews.nodes[]
+             | select(.body != "" or .state != "COMMENTED")
+             | {kind: "review", verdict: .state, author: .author.login, body, url}]
+           + [.comments.nodes[] | {kind: "comment", author: .author.login, body, url}])}
+```
 
 ```sh
 gh api graphql -F thread=<thread-id> -F body=@<path> -f query='
@@ -117,7 +136,21 @@ glab mr note <number> --message "<text>"                               # 5, a co
 
 `resolvable` and `resolved` sit on the discussion's first note, and a note with
 `system: true` is GitLab narrating itself - a label added, a branch pushed -
-rather than a reviewer. `:fullpath` is filled in from `origin`; pass
+rather than a reviewer. The discussions do not carry the head, so pass it in
+from operation 3 as `--arg head <sha>` to this filter, then pipe the result
+through the ledger in [`feedback.md`](feedback.md):
+
+```jq
+[.[] | .notes |= map(select(.system | not)) | select(.notes != [])]
+| {head: $head,
+   threads: [.[] | select(.individual_note | not)
+     | .notes[0].position as $at
+     | {id, resolved: (.notes[0].resolved // false),
+        where: (($at.new_path // "") + (if $at.new_line then ":\($at.new_line)" else "" end)),
+        notes: [.notes[] | {author: .author.username, body, url: "#note_\(.id)"}]}],
+   notes: [.[] | select(.individual_note) | .notes[0]
+     | {kind: "comment", author: .author.username, body, url: "#note_\(.id)"}]}
+``` `:fullpath` is filled in from `origin`; pass
 `-R https://<host>/<group>/<project>` when `origin` is not the project to read.
 
 Two differences that change behaviour rather than spelling:

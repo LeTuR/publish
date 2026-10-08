@@ -60,7 +60,7 @@ flowchart TD
     J --> K["8 change request<br/>four human-facing headings"]
     K --> L["9 watch CI"]
     L -->|red| G
-    L -->|green| Q["10 answer feedback"]
+    L -->|green| Q["10 feedback<br/>wait for review bots, answer every item"]
     Q -->|fix| G
     Q -->|answered| M["done"]
 ```
@@ -108,6 +108,9 @@ gate:
 ci:
   required: true
   timeout: 30m
+
+feedback:
+  wait: 15m
 ```
 
 | key | required | meaning |
@@ -123,6 +126,7 @@ ci:
 | `gate[].instructions` | no | Text handed, as written, to whoever runs, reads or fixes the step. Anything but text is a broken declaration. |
 | `ci.required` | no | Default `true`. `false` declares the repository has no CI. |
 | `ci.timeout` | no | Default `30m`. |
+| `feedback.wait` | no | Default `15m`. How long to keep reading feedback after CI is green, for review bots that post after it. |
 
 `gate: []` declares a repository with no mechanical gate, and records
 `not-applicable`. Leaving `gate` out entirely is not the same thing: the skill
@@ -141,6 +145,7 @@ skills/publish/SKILL.md                          the skill an agent loads
 skills/publish/references/gate.md                how a repository declares its gate
 skills/publish/references/review.md              the review method — the product
 skills/publish/references/forge.md               the five forge operations, per adapter
+skills/publish/references/feedback.md            the feedback ledger, review bots, the wait and the loop cap
 skills/publish/templates/change-request-body.md  the four-heading body to fill in
 ```
 
@@ -167,6 +172,7 @@ that rot, and the two properties everything else depends on:
 | The documented declaration examples use the documented keys, a step's `instructions` are text or absent, and an undeclared gate blocks | `tests/gate.test.mjs` |
 | The frontmatter, the phases in order with documentation between the gate and the commit, the install command and the repository it installs from, that the README and skill agree on the body and declaration keys, and that every forge adapter gives all five operations | `tests/skill.test.mjs` |
 | The body has exactly four human-facing headings | `tests/change-request-body.test.mjs` |
+| Each adapter's documented feedback query, normalised and run through the shared ledger against a recorded forge response, lists every thread, review, comment and bot summary with the head it reviewed; phase 10 waits for late reviewers, loops thurview to 5/5 and caps a point at two rounds | `tests/feedback.test.mjs` |
 | `All Checks` needs every other CI job and passes only when each succeeded, and `PR Title` accepts conventional commits and nothing else | `tests/ci.test.mjs` |
 
 CI reports two checks that stand for all of it, named so that branch protection
