@@ -201,10 +201,10 @@ glab api 'projects/:fullpath/merge_requests/<number>/pipelines'           # 4
 glab api 'projects/:fullpath/pipelines/<pipeline-id>'                     # 4, SHA and URL
 glab api --paginate 'projects/:fullpath/pipelines/<pipeline-id>/jobs?include_retried=true' # 4
 glab ci trace <job-id>                                                  # 4, plan log
-glab api user --jq .username                                            # 5, authenticated author
+glab api user | jq -er '.username | select(type == "string" and length > 0)' # 5, authenticated author
 glab api --paginate 'projects/:fullpath/merge_requests/<number>/notes'    # 5, all pages
-glab api -X POST 'projects/:fullpath/merge_requests/<number>/notes' -f body=@<path> # 5, create
-glab api -X PUT 'projects/:fullpath/merge_requests/<number>/notes/<note-id>' -f body=@<path> # 5, update
+glab api -X POST 'projects/:fullpath/merge_requests/<number>/notes' -F body=@<path> # 5, create
+glab api -X PUT 'projects/:fullpath/merge_requests/<number>/notes/<note-id>' -F body=@<path> # 5, update
 glab api 'projects/:fullpath/merge_requests/<number>/notes/<note-id>'     # 5, read back
 ```
 
@@ -215,9 +215,11 @@ artifact mechanism when logs lack sufficient evidence. Inspect the actual
 checkout for merged-result pipelines; their SHA need not be the MR source SHA.
 Collect all note pages, excluding system notes, before selection. Use the
 [merge-request notes API](https://docs.gitlab.com/api/notes/), whose update is
-PUT, rather than a new `mr note` on every rerun. File-valued fields use `-f` in
-glab and `-F` in gh. Pass `-R` for the origin project on self-hosted GitLab as
-in the main adapter.
+PUT, rather than a new `mr note` on every rerun. File-valued fields use
+`-F body=@<path>` in both CLIs; `-f` sends a literal
+string, including the `@` and path. The author filter fails for a missing or
+empty username; stop before selecting or writing a review if it fails. Pass
+`-R` for the origin project on self-hosted GitLab as in the main adapter.
 
 Both adapters read operation 3 before and after the saved review readback;
 head changes invalidate the review and require fresh evidence.

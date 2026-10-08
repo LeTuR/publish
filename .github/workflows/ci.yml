@@ -24,6 +24,15 @@ jobs:
       # The suite runs the verification recipes out of the documentation, so jq
       # is a test dependency rather than a convenience.
       - run: jq --version
+      # Real-CLI regressions use glab against an isolated loopback server.
+      - name: Install glab for adapter regression tests
+        run: |
+          mkdir -p node_modules/.cache
+          curl -fsSL https://gitlab.com/gitlab-org/cli/-/releases/v1.121.0/downloads/glab_1.121.0_linux_amd64.deb -o node_modules/.cache/glab.deb
+          echo "e095a8ecce1e37779b2af7cbb7a0af5c199dbcb6d793b5396488fce0215afae9  node_modules/.cache/glab.deb" | sha256sum --check
+          sudo dpkg -i node_modules/.cache/glab.deb
+          rm node_modules/.cache/glab.deb
+          glab version
       - run: npm test
 
   # The one check main requires from this workflow, so renaming or extending the

@@ -1,5 +1,5 @@
 // Offline REST fixture used only by infra-plan.test.mjs. Accepts the shipped
-// gh/glab command forms, including their different file-field flags.
+// gh/glab command forms; real CLI behavior is covered by glab-api.test.mjs.
 import fs from 'node:fs';
 const [forge, ...args] = process.argv.slice(2);
 const stateFile = process.env.FIXTURE_FORGE_STATE;
@@ -8,9 +8,11 @@ if (args[0] !== 'api') throw new Error('fixture accepts api only');
 const methodIndex = args.indexOf('-X');
 const method = methodIndex < 0 ? 'GET' : args[methodIndex + 1];
 const endpoint = args.find(a => a.startsWith('repos/') || a.startsWith('projects/'));
-const flag = forge === 'gh' ? '-F' : '-f';
-const fieldIndex = args.indexOf(flag);
-const body = fieldIndex < 0 ? null : fs.readFileSync(args[fieldIndex + 1].slice('body=@'.length), 'utf8');
+const fieldIndex = args.indexOf('-F');
+const rawIndex = args.indexOf('-f');
+const body = fieldIndex >= 0
+  ? fs.readFileSync(args[fieldIndex + 1].slice('body=@'.length), 'utf8')
+  : rawIndex >= 0 ? args[rawIndex + 1].slice('body='.length) : null;
 let result;
 if (method === 'POST') {
   if (!(forge === 'gh' ? /issues\/7\/comments$/ : /merge_requests\/7\/notes$/).test(endpoint)) throw new Error('wrong create endpoint');

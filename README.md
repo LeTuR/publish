@@ -175,12 +175,17 @@ what keeps it that way.
 npm test
 ```
 
+The tests require `jq` and `glab` on PATH. CI installs the checked glab release
+with its verified checksum. GitLab adapter commands run through the real CLI
+against an isolated local HTTP server; no live GitLab credentials are used.
+
 The skill is prose; its documented jq filters are executed against fixtures.
 The suite checks the things
 that rot, and the two properties everything else depends on:
 
 | what | where |
 | --- | --- |
+| The real glab CLI fetches the author, rejects absent authors, and sends exact Markdown bytes for create/update before reading the saved note back | `tests/glab-api.test.mjs` |
 | Fixture plan evidence flows through the documented count and ownership filters, renders the six-section review, creates then updates the same fixture forge comment, and keeps stale/missing scopes unavailable | `tests/infra-plan.test.mjs` |
 | The shipped body renders with four headings and no machine block | `tests/clean-change-request.test.mjs` |
 | A skipped step and a red pipeline cannot be reported as success, and no test in this suite opts out of running | `tests/no-silent-skip.test.mjs` |
