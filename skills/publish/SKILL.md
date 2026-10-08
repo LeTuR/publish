@@ -34,7 +34,7 @@ through the adapter table in [`references/forge.md`](references/forge.md).
   6 commit          the fixes review and the gate produced
   7 push
   8 change request  four human-facing headings
-  9 CI              watch it; a red pipeline is not done
+  9 CI              watch it; review infrastructure plans when applicable
  10 feedback   ◀─┐  every review, thread and comment, answered and resolved
       │          │
       └─ fixes ──┘  back through review, gate, push, CI
@@ -188,6 +188,14 @@ before it runs, and what to do when the registry cannot be reached. It is
 optional and it is never a requirement: without it, the review above is the
 review, and the step passes on its own merits.
 
+**Infrastructure changes**, including infrastructure directories in mixed
+repositories, require a plan review. Determine impact from repository rules,
+the relevant diff and actual plan workflow. Read
+[`references/infra-plan.md`](references/infra-plan.md) now when infrastructure
+is affected: inventory expected scopes and arrange read-only preview evidence.
+It is a conditional `infra-plan` step; application-only changes record
+`not-applicable` and keep the existing flow.
+
 Record for the final report: rounds run, findings raised, findings fixed, and -
 when thurview ran - the command it ran, pinned to its version, as the review
 step's `command`.
@@ -317,6 +325,13 @@ failure mode that matters, so it has one rule and the rule has no exceptions:
   blocks, and that is the honest answer - say the pipeline is still going and
   let the user decide whether to wait.
 
+For infrastructure changes, complete the plan review in
+[`references/infra-plan.md`](references/infra-plan.md) after the preview jobs
+finish: post or update its six-section comment through the adapter, including
+current-head evidence or explicit gaps. Missing, stale or partial evidence blocks
+`infra-plan` even when other CI is green. This posting is automatic when this
+skill is invoked; it never authorizes apply, deploy, state writes or merge.
+
 ## Phase 10 - feedback
 
 A change request with an unanswered comment on it is not published, it is
@@ -415,6 +430,10 @@ Before reporting `passed`, read the change request head using operation 3 of
 whose gate and CI results you checked. If it differs, review and run the gate
 and CI again for that head. Report the checked head and commands to the requester,
 not as a machine block in the change request.
+
+For infrastructure changes, verify the saved plan-review comment again at that
+head using [`references/infra-plan.md`](references/infra-plan.md). Report its URL,
+plan scopes and `infra-plan` status; an old-head review cannot pass.
 
 Report the review state at that head from a last read of the ledger: the
 thurview score and the head it reviewed, Greptile's score, head and check, and

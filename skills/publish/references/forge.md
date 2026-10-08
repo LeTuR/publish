@@ -164,6 +164,64 @@ Two differences that change behaviour rather than spelling:
 - **`--description` takes a string, not a file.** Read the file in the command,
   as above. Do not shorten the body to fit an argument you found awkward.
 
+## Infrastructure forms of operations 4 and 5
+
+For the conditional [infrastructure review](infra-plan.md), operation 4 also
+reads plan evidence and operation 5 creates or edits one conversation comment.
+These are forms of the existing operations, not another publishing path.
+Prefer an installed forge wrapper for operations it supports (for example
+`gh-axi`); use the underlying authenticated CLI for API features it lacks.
+
+### GitHub
+
+```sh
+gh run list --commit <head> --json databaseId,headSha,status,conclusion,url # 4
+gh run view <run-id> --json headSha,jobs,url                             # 4
+gh run view <run-id> --job <job-id> --log                                # 4
+gh run download <run-id> --name <plan-artifact> --dir <private-dir>       # 4
+gh api user --jq .login                                                 # 5, authenticated author
+gh api --paginate 'repos/{owner}/{repo}/issues/<number>/comments'         # 5, all pages
+gh api -X POST 'repos/{owner}/{repo}/issues/<number>/comments' -F body=@<path> # 5, create
+gh api -X PATCH 'repos/{owner}/{repo}/issues/comments/<comment-id>' -F body=@<path> # 5, update
+gh api 'repos/{owner}/{repo}/issues/comments/<comment-id>'                # 5, read back
+```
+
+Collect every comment page into one array for the selection filter in
+`infra-plan.md`; normalize REST `user` to `author`. Use REST numeric IDs, not
+GraphQL node IDs. Inspect source SHA, checkout and artifact provenance even if
+the run is green. The run list must be paged if the relevant run is not returned.
+Only download artifacts into private, untracked storage. These
+[comment endpoints](https://docs.github.com/en/rest/issues/comments) preserve
+the exact selected comment; they never edit the PR body.
+
+### GitLab
+
+```sh
+glab api 'projects/:fullpath/merge_requests/<number>/pipelines'           # 4
+glab api 'projects/:fullpath/pipelines/<pipeline-id>'                     # 4, SHA and URL
+glab api --paginate 'projects/:fullpath/pipelines/<pipeline-id>/jobs?include_retried=true' # 4
+glab ci trace <job-id>                                                  # 4, plan log
+glab api user --jq .username                                            # 5, authenticated author
+glab api --paginate 'projects/:fullpath/merge_requests/<number>/notes'    # 5, all pages
+glab api -X POST 'projects/:fullpath/merge_requests/<number>/notes' -f body=@<path> # 5, create
+glab api -X PUT 'projects/:fullpath/merge_requests/<number>/notes/<note-id>' -f body=@<path> # 5, update
+glab api 'projects/:fullpath/merge_requests/<number>/notes/<note-id>'     # 5, read back
+```
+
+Use the newest verified current-head preview job, including retried jobs and
+child/downstream pipelines selected by the workflow. Page pipeline listings
+when needed. Download a declared artifact with the repository's authenticated
+artifact mechanism when logs lack sufficient evidence. Inspect the actual
+checkout for merged-result pipelines; their SHA need not be the MR source SHA.
+Collect all note pages, excluding system notes, before selection. Use the
+[merge-request notes API](https://docs.gitlab.com/api/notes/), whose update is
+PUT, rather than a new `mr note` on every rerun. File-valued fields use `-f` in
+glab and `-F` in gh. Pass `-R` for the origin project on self-hosted GitLab as
+in the main adapter.
+
+Both adapters read operation 3 before and after the saved review readback;
+head changes invalidate the review and require fresh evidence.
+
 ## Any other forge
 
 Stop, and say which forge and which operation is missing. Do not improvise: a
