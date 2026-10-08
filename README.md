@@ -13,6 +13,14 @@ The change request body has four clear sections: intent, change, risk and testin
 The skill checks the current head, runs the repository gate and waits for CI;
 it reports the checked commit and results to the requester.
 
+Infrastructure changes, including units in mixed repositories, also receive one
+plan-review comment, updated on re-publish or rerun. It uses six sections:
+Safety; Counts; Destroyed or replaced; Drift not caused by this change; What the
+plan cannot tell you; Not applied. Counts come from inspected current-head
+preview evidence; missing scopes or stale plans block success. The review never
+applies infrastructure or claims an apply status without evidence. See the
+[conditional procedure](skills/publish/references/infra-plan.md).
+
 ## Install
 
 ```sh
@@ -60,7 +68,11 @@ flowchart TD
     J --> K["8 change request<br/>four human-facing headings"]
     K --> L["9 watch CI"]
     L -->|red| G
-    L -->|green| Q["10 feedback<br/>wait for review bots, answer every item"]
+    L -->|green| P{"infrastructure affected?"}
+    P -->|yes| R["review current scoped plans<br/>post or update one comment"]
+    R -->|missing or stale| X["blocked"]
+    R -->|verified| Q
+    P -->|no| Q["10 feedback<br/>wait for review bots, answer every item"]
     Q -->|fix| G
     Q -->|answered| M["done"]
 ```
@@ -146,7 +158,9 @@ skills/publish/references/gate.md                how a repository declares its g
 skills/publish/references/review.md              the review method — the product
 skills/publish/references/forge.md               the five forge operations, per adapter
 skills/publish/references/feedback.md            the feedback ledger, review bots, the wait and the loop cap
+skills/publish/references/infra-plan.md          conditional plan review, counts, evidence and comment update
 skills/publish/templates/change-request-body.md  the four-heading body to fill in
+skills/publish/templates/infra-plan-comment.md   the six-section plan review
 ```
 
 `npx skills add` installs `skills/publish/` and nothing else, into
@@ -161,11 +175,13 @@ what keeps it that way.
 npm test
 ```
 
-The skill is prose, so there is no output to assert. The suite checks the things
+The skill is prose; its documented jq filters are executed against fixtures.
+The suite checks the things
 that rot, and the two properties everything else depends on:
 
 | what | where |
 | --- | --- |
+| Fixture plan evidence flows through the documented count and ownership filters, renders the six-section review, creates then updates the same fixture forge comment, and keeps stale/missing scopes unavailable | `tests/infra-plan.test.mjs` |
 | The shipped body renders with four headings and no machine block | `tests/clean-change-request.test.mjs` |
 | A skipped step and a red pipeline cannot be reported as success, and no test in this suite opts out of running | `tests/no-silent-skip.test.mjs` |
 | Every link resolves inside the installed copy, nothing shipped is unreachable, and every code fence stands on its own line | `tests/skill-self-contained.test.mjs` |
