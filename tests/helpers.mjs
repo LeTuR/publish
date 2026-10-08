@@ -161,7 +161,7 @@ export function validateDeclaration(doc) {
 /** Every fenced code block of a given language in a markdown file. */
 export function fencedBlocks(text, lang) {
   const out = [];
-  const re = new RegExp("(?:^|\\n)```" + lang + "\\n([\\s\\S]*?)\\n```", "g");
+  const re = new RegExp("(?:^|\\n)```" + lang + "\\n([\\s\\S]*?)\\n```(?=\\n|$)", "g");
   let m;
   while ((m = re.exec(text))) out.push(m[1]);
   return out;

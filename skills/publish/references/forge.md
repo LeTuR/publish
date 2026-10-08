@@ -151,7 +151,9 @@ through the ledger in [`feedback.md`](feedback.md):
         notes: [.notes[] | {author: .author.username, body, url: "#note_\(.id)"}]}],
    notes: [.[] | select(.individual_note) | .notes[0]
      | {kind: "comment", author: .author.username, body, url: "#note_\(.id)"}]}
-``` `:fullpath` is filled in from `origin`; pass
+```
+
+`:fullpath` is filled in from `origin`; pass
 `-R https://<host>/<group>/<project>` when `origin` is not the project to read.
 
 Two differences that change behaviour rather than spelling:

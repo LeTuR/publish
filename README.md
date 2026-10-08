@@ -168,7 +168,7 @@ that rot, and the two properties everything else depends on:
 | --- | --- |
 | The shipped body renders with four headings and no machine block | `tests/clean-change-request.test.mjs` |
 | A skipped step and a red pipeline cannot be reported as success, and no test in this suite opts out of running | `tests/no-silent-skip.test.mjs` |
-| Every link resolves inside the installed copy, and nothing shipped is unreachable | `tests/skill-self-contained.test.mjs` |
+| Every link resolves inside the installed copy, nothing shipped is unreachable, and every code fence stands on its own line | `tests/skill-self-contained.test.mjs` |
 | The documented declaration examples use the documented keys, a step's `instructions` are text or absent, and an undeclared gate blocks | `tests/gate.test.mjs` |
 | The frontmatter, the phases in order with documentation between the gate and the commit, the install command and the repository it installs from, that the README and skill agree on the body and declaration keys, and that every forge adapter gives all five operations | `tests/skill.test.mjs` |
 | The body has exactly four human-facing headings | `tests/change-request-body.test.mjs` |
