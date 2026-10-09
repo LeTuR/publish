@@ -1,0 +1,271 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="40 0 860 1000" width="860" height="1000" role="img" aria-labelledby="title desc">
+  <title id="title">The publish workflow, phase by phase</title>
+  <desc id="desc">Phases 0 to 10 run top to bottom: precedence, preflight, rebase, review, gate, documentation, commit, push, change request, CI, an infrastructure plan review when infrastructure is affected, and feedback, then the report. Precedence hands over when another publishing path exists. Preflight and rebase stop on a wrong branch, a dirty tree, a missing forge adapter or a conflict. Review findings, a failing gate step, red CI and feedback fixes all go back to review. Changed documentation re-runs the gate. A fifth review round that still finds defects, a gate step that cannot run, missing or stale plan evidence, and a feedback point raised for a third time all block. The report passes only when every step passed or was not applicable at the checked head.</desc>
+
+  <style>
+    .bg { fill: #ffffff; stroke: #d1d9e0; }
+    .box { fill: #f6f8fa; stroke: #d1d9e0; stroke-width: 1.5; }
+    .key { fill: #ddf4ff; stroke: #0969da; stroke-width: 2; }
+    .infra { fill: #fbefff; stroke: #8250df; stroke-width: 1.5; stroke-dasharray: 6 4; }
+    .stop { fill: #ffffff; stroke: #818b98; stroke-width: 1.5; }
+    .block { fill: #ffebe9; stroke: #cf222e; stroke-width: 1.5; }
+    .pass { fill: #dafbe1; stroke: #1a7f37; stroke-width: 1.5; }
+    .chip { fill: #1f2328; }
+    .chip-key { fill: #0969da; }
+    .flow { fill: none; stroke: #59636e; stroke-width: 1.5; }
+    .rail { fill: none; stroke: #0969da; stroke-width: 2; }
+    .to-stop { fill: none; stroke: #818b98; stroke-width: 1.5; }
+    .to-block { fill: none; stroke: #cf222e; stroke-width: 1.5; }
+    .to-pass { fill: none; stroke: #1a7f37; stroke-width: 1.5; }
+    .to-infra { fill: none; stroke: #8250df; stroke-width: 1.5; stroke-dasharray: 6 4; }
+    .dot { fill: #0969da; }
+    .head-flow { fill: #59636e; }
+    .head-rail { fill: #0969da; }
+    .head-stop { fill: #818b98; }
+    .head-block { fill: #cf222e; }
+    .head-pass { fill: #1a7f37; }
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; fill: #1f2328; }
+    .num { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 13px; font-weight: 700; fill: #ffffff; text-anchor: middle; }
+    .name { font-size: 15px; font-weight: 600; }
+    .sub { font-size: 12.5px; fill: #59636e; }
+    .cond { font-size: 12px; fill: #59636e; }
+    .out { font-size: 13px; font-weight: 600; }
+    .out-block { font-size: 13px; font-weight: 600; fill: #d1242f; }
+    .out-pass { font-size: 13px; font-weight: 600; fill: #1a7f37; }
+    .label { font-size: 11.5px; fill: #0969da; font-weight: 600; }
+    .label-muted { font-size: 11.5px; fill: #59636e; }
+    .legend { font-size: 12px; fill: #59636e; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0d1117; stroke: #3d444d; }
+      .box { fill: #151b23; stroke: #3d444d; }
+      .key { fill: #0c2d6b; stroke: #4493f8; }
+      .infra { fill: #2a1f45; stroke: #ab7df8; }
+      .stop { fill: #0d1117; stroke: #9198a1; }
+      .block { fill: #3a1418; stroke: #f85149; }
+      .pass { fill: #0f2d1a; stroke: #3fb950; }
+      .chip { fill: #d1d9e0; }
+      .chip-key { fill: #4493f8; }
+      .flow { stroke: #9198a1; }
+      .rail { stroke: #4493f8; }
+      .to-stop { stroke: #9198a1; }
+      .to-block { stroke: #f85149; }
+      .to-pass { stroke: #3fb950; }
+      .to-infra { stroke: #ab7df8; }
+      .dot, .head-rail { fill: #4493f8; }
+      .head-flow, .head-stop { fill: #9198a1; }
+      .head-block { fill: #f85149; }
+      .head-pass { fill: #3fb950; }
+      text { fill: #f0f6fc; }
+      .num { fill: #0d1117; }
+      .sub, .cond, .label-muted, .legend { fill: #9198a1; }
+      .out-block { fill: #ff7b72; }
+      .out-pass { fill: #3fb950; }
+      .label { fill: #4493f8; }
+    }
+  </style>
+
+  <defs>
+    <marker id="a-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-flow" d="M0 0 L10 5 L0 10 z"/></marker>
+    <marker id="a-rail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-rail" d="M0 0 L10 5 L0 10 z"/></marker>
+    <marker id="a-stop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-stop" d="M0 0 L10 5 L0 10 z"/></marker>
+    <marker id="a-block" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-block" d="M0 0 L10 5 L0 10 z"/></marker>
+    <marker id="a-pass" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-pass" d="M0 0 L10 5 L0 10 z"/></marker>
+  </defs>
+
+  <!-- Card, so the diagram reads on any page background. -->
+  <rect class="bg" x="41" y="1" width="858" height="998" rx="14"/>
+
+  <!--
+    Layout. The spine holds the phases: x 190 to 490, one row every 64 units
+    from y 80, each box 48 tall. Left of it, x 120, is the fix rail back to
+    review. Right of it, from x 570, are the outcomes that end or block a run.
+  -->
+
+  <!-- Start -->
+  <rect class="stop" x="275" y="22" width="130" height="32" rx="16"/>
+  <text class="out" x="340" y="43" text-anchor="middle">"ship this"</text>
+  <path class="flow" d="M340 54 V78" marker-end="url(#a-flow)"/>
+
+  <!-- Spine arrows between rows -->
+  <g class="flow" marker-end="url(#a-flow)">
+    <path d="M340 128 V142"/>
+    <path d="M340 192 V206"/>
+    <path d="M340 256 V270"/>
+    <path d="M340 320 V334"/>
+    <path d="M340 384 V398"/>
+    <path d="M340 448 V462"/>
+    <path d="M340 512 V526"/>
+    <path d="M340 576 V590"/>
+    <path d="M340 640 V654"/>
+    <path d="M340 704 V718"/>
+    <path d="M340 768 V782"/>
+    <path d="M340 832 V858"/>
+  </g>
+
+  <!-- 0 precedence -->
+  <rect class="box" x="190" y="80" width="300" height="48" rx="8"/>
+  <rect class="chip" x="200" y="92" width="26" height="24" rx="6"/>
+  <text class="num" x="213" y="109">0</text>
+  <text class="name" x="238" y="100">Precedence</text>
+  <text class="sub" x="238" y="118">another skill, gate tool or rule?</text>
+
+  <!-- 1 preflight -->
+  <rect class="box" x="190" y="144" width="300" height="48" rx="8"/>
+  <rect class="chip" x="200" y="156" width="26" height="24" rx="6"/>
+  <text class="num" x="213" y="173">1</text>
+  <text class="name" x="238" y="164">Preflight</text>
+  <text class="sub" x="238" y="182">branch, clean tree, forge auth, base</text>
+
+  <!-- 2 rebase -->
+  <rect class="box" x="190" y="208" width="300" height="48" rx="8"/>
+  <rect class="chip" x="200" y="220" width="26" height="24" rx="6"/>
+  <text class="num" x="213" y="237">2</text>
+  <text class="name" x="238" y="228">Rebase</text>
+  <text class="sub" x="238" y="246">onto the base, fresh from the remote</text>
+
+  <!-- 3 review: the product, so it carries the accent -->
+  <rect class="key" x="190" y="272" width="300" height="48" rx="8"/>
+  <rect class="chip-key" x="200" y="284" width="26" height="24" rx="6"/>
+  <text class="num" x="213" y="301">3</text>
+  <text class="name" x="238" y="292">Review</text>
+  <text class="sub" x="238" y="310">adversarial, against the repo's rules</text>
+
+  <!-- 4 gate -->
+  <rect class="box" x="190" y="336" width="300" height="48" rx="8"/>
+  <rect class="chip" x="200" y="348" width="26" height="24" rx="6"/>
+  <text class="num" x="213" y="365">4</text>
+  <text class="name" x="238" y="356">Gate</text>
+  <text class="sub" x="238" y="374">the declared steps, in order</text>
+
+  <!-- 5 documentation -->
+  <rect class="box" x="190" y="400" width="300" height="48" rx="8"/>
+  <rect class="chip" x="200" y="412" width="26" height="24" rx="6"/>
+  <text class="num" x="213" y="429">5</text>
+  <text class="name" x="238" y="420">Documentation</text>
+  <text class="sub" x="238" y="438">update what the change made stale</text>
+
+  <!-- 6 commit -->
+  <rect class="box" x="190" y="464" width="300" height="48" rx="8"/>
+  <rect class="chip" x="200" y="476" width="26" height="24" rx="6"/>
+  <text class="num" x="213" y="493">6</text>
+  <text class="name" x="238" y="484">Commit</text>
+  <text class="sub" x="238" y="502">the fixes review and the gate made</text>
+
+  <!-- 7 push -->
+  <rect class="box" x="190" y="528" width="300" height="48" rx="8"/>
+  <rect class="chip" x="200" y="540" width="26" height="24" rx="6"/>
+  <text class="num" x="213" y="557">7</text>
+  <text class="name" x="238" y="548">Push</text>
+  <text class="sub" x="238" y="566">--force-with-lease, record the head</text>
+
+  <!-- 8 change request -->
+  <rect class="box" x="190" y="592" width="300" height="48" rx="8"/>
+  <rect class="chip" x="200" y="604" width="26" height="24" rx="6"/>
+  <text class="num" x="213" y="621">8</text>
+  <text class="name" x="238" y="612">Change request</text>
+  <text class="sub" x="238" y="630">Intent, What Changed, Risk, Testing</text>
+
+  <!-- 9 CI -->
+  <rect class="box" x="190" y="656" width="300" height="48" rx="8"/>
+  <rect class="chip" x="200" y="668" width="26" height="24" rx="6"/>
+  <text class="num" x="213" y="685">9</text>
+  <text class="name" x="238" y="676">CI</text>
+  <text class="sub" x="238" y="694">red or still running is not done</text>
+
+  <!-- infrastructure plan review, part of phases 3 and 9, only when infrastructure is affected -->
+  <rect class="infra" x="190" y="720" width="300" height="48" rx="8"/>
+  <text class="name" x="206" y="740">Infrastructure plan review</text>
+  <text class="sub" x="206" y="758">current-head plans, one updated comment</text>
+
+  <!-- 10 feedback -->
+  <rect class="box" x="190" y="784" width="300" height="48" rx="8"/>
+  <rect class="chip" x="200" y="796" width="32" height="24" rx="6"/>
+  <text class="num" x="216" y="813">10</text>
+  <text class="name" x="244" y="804">Feedback</text>
+  <text class="sub" x="244" y="822">wait for late bots, answer every item</text>
+
+  <!-- report -->
+  <rect class="box" x="190" y="860" width="300" height="64" rx="8"/>
+  <text class="name" x="206" y="886">Report</text>
+  <text class="sub" x="206" y="906">verdict at the checked head</text>
+
+  <!-- Fix rail: every fix is new code, so it goes back to review. -->
+  <path class="rail" d="M120 808 V286 H188" marker-end="url(#a-rail)"/>
+  <g class="rail">
+    <path d="M190 308 H120"/>
+    <path d="M190 360 H120"/>
+    <path d="M190 680 H120"/>
+    <path d="M190 808 H120"/>
+  </g>
+  <g class="dot">
+    <circle cx="120" cy="308" r="3.5"/>
+    <circle cx="120" cy="360" r="3.5"/>
+    <circle cx="120" cy="680" r="3.5"/>
+    <circle cx="120" cy="808" r="3.5"/>
+  </g>
+  <text class="label" x="128" y="303">findings</text>
+  <text class="label" x="134" y="355">fails</text>
+  <text class="label" x="146" y="675">red</text>
+  <text class="label" x="146" y="803">fix</text>
+  <text class="label" transform="translate(104 560) rotate(-90)" text-anchor="middle">fix, then back to review</text>
+
+  <!-- Documentation changed: run the gate again. -->
+  <path class="flow" d="M490 424 H526 V372 H492" marker-end="url(#a-flow)"/>
+  <text class="label-muted" x="534" y="428">docs changed: run the gate again</text>
+
+  <!-- Outcomes that end or block a run -->
+  <path class="to-stop" d="M490 104 H568" marker-end="url(#a-stop)"/>
+  <rect class="stop" x="570" y="80" width="310" height="48" rx="8"/>
+  <text class="cond" x="584" y="99">another publishing path exists</text>
+  <text class="out" x="584" y="117">hand over and stop</text>
+
+  <path class="to-stop" d="M490 168 H568" marker-end="url(#a-stop)"/>
+  <rect class="stop" x="570" y="144" width="310" height="48" rx="8"/>
+  <text class="cond" x="584" y="163">base branch, dirty tree or no forge adapter</text>
+  <text class="out" x="584" y="181">stop and say why</text>
+
+  <path class="to-stop" d="M490 232 H568" marker-end="url(#a-stop)"/>
+  <rect class="stop" x="570" y="208" width="310" height="48" rx="8"/>
+  <text class="cond" x="584" y="227">rebase conflict</text>
+  <text class="out" x="584" y="245">stop: the user resolves it</text>
+
+  <path class="to-block" d="M490 296 H568" marker-end="url(#a-block)"/>
+  <rect class="block" x="570" y="272" width="310" height="48" rx="8"/>
+  <text class="cond" x="584" y="291">still finding defects at round 5</text>
+  <text class="out-block" x="584" y="309">failed, nothing is pushed</text>
+
+  <path class="to-block" d="M490 348 H568" marker-end="url(#a-block)"/>
+  <rect class="block" x="570" y="336" width="310" height="48" rx="8"/>
+  <text class="cond" x="584" y="355">a step cannot run, or no gate is found</text>
+  <text class="out-block" x="584" y="373">skipped, which blocks</text>
+
+  <path class="to-block" d="M490 744 H568" marker-end="url(#a-block)"/>
+  <rect class="block" x="570" y="720" width="310" height="48" rx="8"/>
+  <text class="cond" x="584" y="739">missing, partial or stale plan evidence</text>
+  <text class="out-block" x="584" y="757">blocked, and nothing is applied</text>
+
+  <path class="to-block" d="M490 808 H568" marker-end="url(#a-block)"/>
+  <rect class="block" x="570" y="784" width="310" height="48" rx="8"/>
+  <text class="cond" x="584" y="803">same point still raised after two rounds</text>
+  <text class="out-block" x="584" y="821">failed: report both answers</text>
+
+  <path class="to-pass" d="M490 876 H568" marker-end="url(#a-pass)"/>
+  <rect class="pass" x="570" y="860" width="310" height="30" rx="8"/>
+  <text class="out-pass" x="584" y="880">passed: every step passed or not applicable</text>
+
+  <path class="to-block" d="M490 910 H568" marker-end="url(#a-block)"/>
+  <rect class="block" x="570" y="896" width="310" height="30" rx="8"/>
+  <text class="out-block" x="584" y="916">blocked: say it is not done, and why</text>
+
+  <!-- Legend -->
+  <g transform="translate(70 958)">
+    <path class="flow" d="M0 0 H28" marker-end="url(#a-flow)"/>
+    <text class="legend" x="36" y="4">next phase</text>
+    <path class="rail" d="M130 0 H158" marker-end="url(#a-rail)"/>
+    <text class="legend" x="166" y="4">fix, back to review</text>
+    <path class="to-infra" d="M310 0 H338"/>
+    <text class="legend" x="346" y="4">only when infrastructure is affected</text>
+    <path class="to-block" d="M580 0 H608" marker-end="url(#a-block)"/>
+    <text class="legend" x="616" y="4">blocks the verdict</text>
+  </g>
+</svg>

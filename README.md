@@ -1,25 +1,12 @@
 # publish
 
-An agent skill that takes committed work through a gate — adversarial review,
-then whatever tests, lint and docs commands the repository declares for itself,
-then the documentation the change made stale — and only then pushes, opens the
-change request, and waits for CI to go green.
+An agent skill that takes committed work through a gate before it leaves the
+machine: adversarial review, the tests, lint and docs commands the repository
+declares, and the documentation the change made stale. Only then does it push,
+open the change request, wait for CI and answer every review.
 
-A change request is a pull request on GitHub and a merge request on GitLab. The
-gate is the same either way: four phases touch the forge, through five
-operations, and both adapters ship complete.
-
-The change request body has four clear sections: intent, change, risk and testing.
-The skill checks the current head, runs the repository gate and waits for CI;
-it reports the checked commit and results to the requester.
-
-Infrastructure changes, including units in mixed repositories, also receive one
-plan-review comment, updated on re-publish or rerun. It uses six sections:
-Safety; Counts; Destroyed or replaced; Drift not caused by this change; What the
-plan cannot tell you; Not applied. Counts come from inspected current-head
-preview evidence; missing scopes or stale plans block success. The review never
-applies infrastructure or claims an apply status without evidence. See the
-[conditional procedure](skills/publish/references/infra-plan.md).
+It ships adapters for GitHub pull requests and GitLab merge requests. The gate
+is the same on both.
 
 ## Install
 
@@ -28,74 +15,56 @@ npx skills@latest add https://github.com/Thurbeen/publish \
   --skill publish --agent universal claude-code --global --yes
 ```
 
-`--global` installs it for your user, so one install covers every repository you
-publish from. `universal` puts the one real copy in `~/.agents/skills/publish`,
-the directory that is not tied to any one agent. Every other agent you name gets
-a symlink to that copy, such as `~/.claude/skills/publish` →
-`../../.agents/skills/publish`, so an update lands everywhere at once. Swap
-`claude-code` for any agents [`skills`](https://www.npmjs.com/package/skills)
-supports, but keep `universal` and at least one more: with `--yes` and a single
-target, the CLI copies instead of linking. Nothing goes on `PATH` and nothing is
-compiled — the skill is prose an agent reads, and that is the whole deliverable.
+`--global` covers every repository you publish from. `universal` puts the one
+real copy in `~/.agents/skills/publish` and links each other agent you name to
+it, so an update lands everywhere at once. Swap `claude-code` for any agent
+[`skills`](https://www.npmjs.com/package/skills) supports, but keep `universal`
+and at least one more: with `--yes` and a single target, the CLI copies instead
+of linking. Nothing is compiled or put on `PATH`; the skill is prose an agent
+reads.
 
 ## When an agent should load it
 
-On "push this", "ship it", "publish", "open a PR", "get this merged" — and on
-any task whose own instructions say to publish its work.
+On "push this", "ship it", "publish", "open a PR", "get this merged", and on any
+task whose instructions say to publish its own work.
 
 Not when the repository ships its own `publish`, `ship` or `release` skill, and
-not when it already has a gate tool installed and configured in that clone.
-Both of those push and open a change request too, and running two of them is how
-a branch ends up with two.
+not when a gate tool is already installed and configured in that clone. Both
+push and open a change request too, and running two is how a branch ends up
+with two.
 
-## What it does
+## How it works
 
-```mermaid
-flowchart TD
-    A["ship this"] --> B{"phase 0<br/>someone else's gate?"}
-    B -->|yes| Z["hand over, stop"]
-    B -->|no| C["1 preflight<br/>branch, clean tree, forge, base"]
-    C --> D["2 rebase onto the base"]
-    D --> E["3 review<br/>against this repo's rules"]
-    E --> F{"findings?"}
-    F -->|yes| G["fix"] --> E
-    F -->|no| H["4 gate<br/>the declared steps, all of them"]
-    H -->|a step fails| G
-    H --> D5["5 documentation<br/>what the change made stale"]
-    D5 -->|docs changed| H
-    D5 --> I["6 commit the fixes"]
-    I --> J["7 push"]
-    J --> K["8 change request<br/>four human-facing headings"]
-    K --> L["9 watch CI"]
-    L -->|red| G
-    L -->|green| P{"infrastructure affected?"}
-    P -->|yes| R["review current scoped plans<br/>post or update one comment"]
-    R -->|missing or stale| X["blocked"]
-    R -->|verified| Q
-    P -->|no| Q["10 feedback<br/>wait for review bots, answer every item"]
-    Q -->|fix| G
-    Q -->|answered| M["done"]
-```
+<p align="center">
+  <img src="assets/workflow.svg" width="860" alt="The publish workflow. Phases 0 to 10 run in order: precedence, preflight, rebase, review, gate, documentation, commit, push, change request, CI, an infrastructure plan review when infrastructure is affected, then feedback and the report. Review findings, gate failures, red CI and feedback fixes all return to review. Another publishing path hands over; a wrong branch, dirty tree, missing adapter or rebase conflict stops; an unrunnable gate step, a fifth review round still finding defects, missing plan evidence or a point raised after two rounds blocks.">
+</p>
 
-The change request body has four headings, in this order: `## Intent`,
-`## What Changed`, `## Risk Assessment` and `## Testing`. It carries no
-machine attestation.
+- **Review is the product.** It reads the repository's own rules first, keeps
+  only findings with a concrete failure scenario, and loops until a round finds
+  nothing, five rounds at most. Measured against the tool this replaces, it
+  produced the large majority of the fixes. Method:
+  [`review.md`](skills/publish/references/review.md).
+- **Every step reports one of four statuses**: `passed`, `failed`, `skipped`
+  or `not-applicable`. The verdict is `passed` only when every step is `passed`
+  or `not-applicable`. A step that could not run, a red pipeline and a pipeline
+  still running all block.
+- **The change request body** has four headings, in order: `## Intent`,
+  `## What Changed`, `## Risk Assessment`, `## Testing`. It carries no machine
+  attestation; the checked head and results go to the requester.
+- **Infrastructure changes**, including infrastructure directories in mixed
+  repositories, get one plan-review comment built from current-head preview
+  evidence, updated on every re-publish. Missing or stale plans block, and the
+  skill never applies anything. Procedure:
+  [`infra-plan.md`](skills/publish/references/infra-plan.md).
+- **Feedback is answered, not skimmed.** Every review, thread and bot summary
+  is fixed or answered with evidence, then resolved. Late review bots get
+  `feedback.wait`, and a point still raised after two rounds stops the run.
+  On a re-publish it also runs before review. Details:
+  [`feedback.md`](skills/publish/references/feedback.md).
 
-Every phase reports one of four statuses — `passed`, `failed`, `skipped`,
-`not-applicable` — and the verdict is `passed` only when every step is `passed`
-or `not-applicable`. A step that could not run blocks. A red pipeline blocks. A
-pipeline still running blocks. There is no fifth status to hide in.
+## Declare the gate
 
-The review phase is the product and the rest is plumbing around it: measured
-against the tool this replaces, review produced the large majority of the fixes
-and every other step produced a handful between them. The method it follows —
-what to read first, the ten passes, the rule that every finding carries a
-concrete failure scenario — is in
-[`skills/publish/references/review.md`](skills/publish/references/review.md).
-
-## How a repository declares its gate
-
-`.publish.yaml`, at the repository root:
+Put `.publish.yaml` at the repository root:
 
 ```yaml
 version: 1
@@ -135,78 +104,53 @@ feedback:
 | `gate[].name` | yes | The step's name in the final report. Free text. |
 | `gate[].run` | yes | One command, or a list run in order, from the repository root. |
 | `gate[].fix` | no | Applies the mechanical fixes, once, before a re-run. |
-| `gate[].instructions` | no | Text handed, as written, to whoever runs, reads or fixes the step. Anything but text is a broken declaration. |
+| `gate[].instructions` | no | Text handed, as written, to whoever runs, reads or fixes the step. |
 | `ci.required` | no | Default `true`. `false` declares the repository has no CI. |
 | `ci.timeout` | no | Default `30m`. |
-| `feedback.wait` | no | Default `15m`. How long to keep reading feedback after CI is green, for review bots that post after it. |
+| `feedback.wait` | no | Default `15m`. How long to keep reading feedback after CI is green. |
 
-`gate: []` declares a repository with no mechanical gate, and records
-`not-applicable`. Leaving `gate` out entirely is not the same thing: the skill
-falls back to `AGENTS.md` / `CLAUDE.md` / `CONTRIBUTING.md`, then a task
-runner's check target, then the package manifest's scripts — naming an inferred source as `discovered:<file>` in the final report — and if none of those yields
-commands, the gate is `skipped` and the verdict is `blocked`.
+`gate: []` declares no mechanical gate and records `not-applicable`. With no
+`.publish.yaml`, the skill looks in `AGENTS.md`, `CLAUDE.md` or
+`CONTRIBUTING.md`, then a task runner's check target, then the package
+manifest's scripts, and reports the source as `discovered:<file>`. If none
+yields commands, the gate is `skipped` and the verdict is `blocked`. Full
+contract: [`gate.md`](skills/publish/references/gate.md).
 
-The full contract, including what a repository whose whole gate is one script
-writes, is in
-[`skills/publish/references/gate.md`](skills/publish/references/gate.md).
+## Reference
 
-## Layout
+| file | what it holds |
+| --- | --- |
+| [`SKILL.md`](skills/publish/SKILL.md) | the skill an agent loads: every phase and the report |
+| [`gate.md`](skills/publish/references/gate.md) | the declaration, its keys and the discovery order |
+| [`review.md`](skills/publish/references/review.md) | the review method, its passes and rounds |
+| [`forge.md`](skills/publish/references/forge.md) | the five forge operations, for `gh` and `glab` |
+| [`feedback.md`](skills/publish/references/feedback.md) | the feedback ledger, review bots, the wait and the round cap |
+| [`infra-plan.md`](skills/publish/references/infra-plan.md) | the infrastructure plan review: evidence, counts, comment |
+| [`change-request-body.md`](skills/publish/templates/change-request-body.md) | the four-heading body template |
+| [`infra-plan-comment.md`](skills/publish/templates/infra-plan-comment.md) | the six-section plan-review template |
 
-```
-skills/publish/SKILL.md                          the skill an agent loads
-skills/publish/references/gate.md                how a repository declares its gate
-skills/publish/references/review.md              the review method — the product
-skills/publish/references/forge.md               the five forge operations, per adapter
-skills/publish/references/feedback.md            the feedback ledger, review bots, the wait and the loop cap
-skills/publish/references/infra-plan.md          conditional plan review, counts, evidence and comment update
-skills/publish/templates/change-request-body.md  the four-heading body to fill in
-skills/publish/templates/infra-plan-comment.md   the six-section plan review
-```
+`npx skills add` installs `skills/publish/` and nothing else, so everything the
+skill relies on lives there.
+[`tests/skill-self-contained.test.mjs`](tests/skill-self-contained.test.mjs)
+keeps it that way.
 
-`npx skills add` installs `skills/publish/` and nothing else, into
-`.agents/skills/publish` with each agent's directory linked to it, so everything
-the skill promises lives inside that directory.
-[`tests/skill-self-contained.test.mjs`](tests/skill-self-contained.test.mjs) is
-what keeps it that way.
-
-## Tests
+## Development
 
 ```sh
 npm test
 ```
 
-The tests require `jq` and `glab` on PATH. CI installs the checked glab release
-with its verified checksum. GitLab adapter commands run through the real CLI
-against an isolated local HTTP server; no live GitLab credentials are used.
+The suite needs Node 22 or later, `jq` and `glab` on `PATH`. It runs the
+documented jq filters against recorded forge responses, and drives the real
+`glab` CLI against a local HTTP server, so no forge credentials are used.
 
-The skill is prose; its documented jq filters are executed against fixtures.
-The suite checks the things
-that rot, and the two properties everything else depends on:
+CI exposes two stable checks for branch protection on `main`:
 
-| what | where |
-| --- | --- |
-| The real glab CLI fetches the author, rejects absent authors, and sends exact Markdown bytes for create/update before reading the saved note back | `tests/glab-api.test.mjs` |
-| Fixture plan evidence flows through the documented count and ownership filters, renders the six-section review, creates then updates the same fixture forge comment, and keeps stale/missing scopes unavailable | `tests/infra-plan.test.mjs` |
-| The shipped body renders with four headings and no machine block | `tests/clean-change-request.test.mjs` |
-| A skipped step and a red pipeline cannot be reported as success, and no test in this suite opts out of running | `tests/no-silent-skip.test.mjs` |
-| Every link resolves inside the installed copy, nothing shipped is unreachable, and every code fence stands on its own line | `tests/skill-self-contained.test.mjs` |
-| The documented declaration examples use the documented keys, a step's `instructions` are text or absent, and an undeclared gate blocks | `tests/gate.test.mjs` |
-| The frontmatter, the phases in order with documentation between the gate and the commit, the install command and the repository it installs from, that the README and skill agree on the body and declaration keys, and that every forge adapter gives all five operations | `tests/skill.test.mjs` |
-| The body has exactly four human-facing headings | `tests/change-request-body.test.mjs` |
-| Each adapter's documented feedback query, normalised and run through the shared ledger against a recorded forge response, lists every thread, review, comment and bot summary with the head it reviewed; phase 10 waits for late reviewers, loops thurview to 5/5 and caps a point at two rounds | `tests/feedback.test.mjs` |
-| `All Checks` needs every other CI job and passes only when each succeeded, and `PR Title` accepts conventional commits and nothing else | `tests/ci.test.mjs` |
-
-CI reports two checks that stand for all of it, named so that branch protection
-on `main` can require them without changing whenever a job does:
-
-- **`All Checks`**, the last job in `.github/workflows/ci.yml`. It needs every
-  other job there, and fails if any of them failed, was cancelled or was
-  skipped.
-- **`PR Title`**, from `.github/workflows/pr-title.yml`. Squash merge makes the
-  title the commit on `main`, so it must be a conventional commit:
-  `type(scope)!: description`, scope and `!` optional, with a type from `feat`,
-  `fix`, `perf`, `refactor`, `docs`, `style`, `test`, `chore`, `build`, `ci` or
-  `revert`. It runs again whenever the title is edited.
+- **`All Checks`** needs every other job in
+  [`ci.yml`](.github/workflows/ci.yml) and fails if any failed, was cancelled
+  or was skipped.
+- **`PR Title`** requires a conventional-commit title, because squash merge
+  makes it the commit on `main`.
 
 ## License
 
