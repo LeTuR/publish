@@ -8,24 +8,24 @@
 {{counts}}
 
 {{evidence}}
-<!-- Link the current full commit, run/pipeline and job; identify each scope and provenance. -->
+<!-- Link the current full commit, run or pipeline, and job; name each scope and its provenance. -->
 
 ## Destroyed or replaced
 
 {{destroyed}}
-<!-- Names and implications, or none within inspected scope; unknown for missing scopes. -->
+<!-- Names and implications, or none within inspected scopes; unknown for missing ones. -->
 
 ## Drift not caused by this change
 
 {{drift}}
-<!-- Distinguish observed unrelated drift from suspected or unchecked drift. -->
+<!-- Observed unrelated drift, separate from suspected or unchecked drift. -->
 
 ## What the plan cannot tell you
 
 {{limits}}
-<!-- Short paragraphs; bullets only for multiple risks or limitations. -->
+<!-- Short paragraphs; bullets only for several limits. -->
 
 ## Not applied
 
 {{applied}}
-<!-- Verified history and workflow only, or apply status unverified. Put any required signature last. -->
+<!-- Verified history and workflow, or apply status unverified. Any signature goes last. -->

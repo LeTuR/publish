@@ -1,40 +1,29 @@
-<!-- The change request body - a pull request on GitHub, a merge request on
-     GitLab. Fill it in and delete every comment as you answer it: what ships
-     must read as prose a teammate wrote, with no template residue in it.
-     Four headings, this order and this spelling. -->
+<!-- Fill in each section and delete every comment. Four headings, in this
+     order and spelling; no template residue in what ships. -->
 
 ## Intent
 
-<!-- The reason this change exists, in the terms of whoever wanted it. One
-     short paragraph. Not a summary of the diff - the reader has the diff. -->
+<!-- Why this change exists, in the requester's terms. One short paragraph,
+     not a summary of the diff. -->
 
 ## What Changed
 
-<!-- At reviewer altitude: the shape of the change, the decisions inside it,
-     what was deliberately left out. Bullets. Skip anything the diff makes
-     obvious on its own. -->
+<!-- Bullets at reviewer altitude: the shape of the change, its decisions,
+     what was deliberately left out. Skip what the diff already shows. -->
 
 ## Risk Assessment
 
-<!-- What a reviewer cannot see in the diff. Breaking changes, migrations,
-     data effects, anything that needs a deploy in a particular order, paths
-     that are not covered by tests, trade-offs taken on purpose.
-
-     Nothing to say here is itself worth one line saying so. No scores, no
-     percentages, no estimates. -->
+<!-- What the diff does not show: breaking changes, migrations, data effects,
+     deploy ordering, untested paths, deliberate trade-offs. Nothing to say
+     is one line saying so. No scores, percentages or estimates. -->
 
 ## Testing
 
-<!-- What was run in this session and what it printed: how many review rounds
-     it took, which reviewer ran and at what version, what they found and what
-     got fixed, which gate steps ran with which commands, what the
-     documentation step updated, how CI ended, and how many maintainer threads
-     were answered.
+<!-- What was run in this session and what it printed: review rounds, the
+     reviewer and its version, findings and fixes, gate steps and commands,
+     what the documentation step updated, how CI ended, and how many
+     maintainer threads were answered.
 
-     Every sentence here is backed by something run in this session. Anything
-     that was not - another platform, another toolchain, a forge this run never
-     touched - is either left out or said plainly to be not verified. Never
-     state it as fact.
-
-     Name any step that is skipped or failed, and why. A reader should
-     not have to infer whether something ran. -->
+     Anything not run here - another platform, toolchain or forge - is left
+     out or labelled not verified, never stated as fact. Name every skipped
+     or failed step and why. -->

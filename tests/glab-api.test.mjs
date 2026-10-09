@@ -9,7 +9,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { ROOT, SKILL_DIR, read, fencedBlocks } from './helpers.mjs';
 const exec = promisify(execFile);
-const adapter = fencedBlocks(read(path.join(SKILL_DIR, 'references/forge.md')).split('### GitLab')[1], 'sh')[0];
+const adapter = fencedBlocks(read(path.join(SKILL_DIR, 'references/infra-plan.md')).split('### GitLab')[1], 'sh')[0];
 
 async function harness(work) {
   const cache = path.join(ROOT, 'node_modules', '.cache');
@@ -25,6 +25,9 @@ async function harness(work) {
     requests.push({ method: req.method, url: req.url, bytes });
     res.setHeader('Content-Type', 'application/json');
     if (req.url === '/api/v4/user') res.end(JSON.stringify(user));
+    else if (req.url === '/api/v4/projects/owner%2Frepo/merge_requests/7/discussions/d-thread/notes') {
+      res.end(JSON.stringify({ id: 40, body: JSON.parse(bytes).body }));
+    }
     else if (req.url.startsWith('/api/v4/projects/owner%2Frepo/merge_requests/7/notes')) {
       if (req.method !== 'GET') note = { id: 12, author: user, body: JSON.parse(bytes).body };
       res.end(JSON.stringify(note));
@@ -43,7 +46,8 @@ async function harness(work) {
     .replace(/\s+#.*$/, '').replace(':fullpath', 'owner%2Frepo')
     .replace('<number>', '7').replace('<note-id>', '12').replace('<path>', 'review.md');
   const run = (kind) => exec('bash', ['-o', 'pipefail', '-c', command(kind)], { cwd: scratch, env });
-  try { await work({ run, requests, bodyPath, setUser: value => { user = value; } }); }
+  const shell = (line) => exec('bash', ['-o', 'pipefail', '-c', line], { cwd: scratch, env });
+  try { await work({ run, shell, requests, bodyPath, setUser: value => { user = value; } }); }
   finally {
     await new Promise(resolve => server.close(resolve));
     fs.rmSync(scratch, { recursive: true, force: true });
@@ -84,3 +88,27 @@ for (const kind of ['create', 'update']) {
     });
   });
 }
+
+// The feedback adapter's thread reply, as one statement with its continuations.
+function gitlabReply() {
+  const section = read(path.join(SKILL_DIR, 'references/forge.md')).split('## GitLab, through `glab`')[1].split('\n## ')[0];
+  const lines = fencedBlocks(section, 'sh').join('\n').split('\n');
+  const end = lines.findIndex(l => l.includes('# 5, reply'));
+  assert.ok(end > 0, 'the glab adapter has no command marked # 5, reply');
+  let start = end;
+  while (start > 0 && /\\\s*$/.test(lines[start - 1])) start--;
+  return lines.slice(start, end + 1).map(l => l.replace(/\s+#.*$/, '').replace(/\\\s*$/, '')).join(' ')
+    .replace(':fullpath', 'owner%2Frepo').replace('<number>', '7')
+    .replace('<discussion-id>', 'd-thread').replace('<path>', 'reply.md');
+}
+
+test('real glab thread reply posts the reply file, not its path', async () => {
+  await harness(async ({ shell, requests, bodyPath }) => {
+    const reply = 'Fixed in abc123: `npm test` now prints "ok 12".\n';
+    fs.writeFileSync(path.join(path.dirname(bodyPath), 'reply.md'), reply);
+    await shell(gitlabReply());
+    assert.equal(requests[0].method, 'POST');
+    assert.equal(requests[0].url, '/api/v4/projects/owner%2Frepo/merge_requests/7/discussions/d-thread/notes');
+    assert.equal(JSON.parse(requests[0].bytes).body, reply);
+  });
+});

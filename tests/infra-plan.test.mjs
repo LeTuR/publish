@@ -30,7 +30,7 @@ function forgeRoundTrip(body, write, comments, forge) {
     const bodyPath = path.join(scratch, 'body.md');
     fs.writeFileSync(statePath, JSON.stringify({ comments, requests: [] }));
     fs.writeFileSync(bodyPath, body);
-    const forgeRef = read(path.join(SKILL_DIR, 'references/forge.md'));
+    const forgeRef = read(path.join(SKILL_DIR, 'references/infra-plan.md'));
     const start = forgeRef.indexOf(forge === 'gh' ? '### GitHub' : '### GitLab');
     const block = fencedBlocks(forgeRef.slice(start), 'sh')[0];
     const command = (kind) => block.split('\n').find(l => l.includes(`# 5, ${kind}`))

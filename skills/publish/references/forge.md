@@ -1,36 +1,27 @@
 # The forge
 
-Loaded by phase 1. The gate is the same everywhere; only four phases
-touch a forge, and they touch it through five operations. This file is the
-adapter table.
+Loaded by phase 1. Phases 1, 8, 9 and 10 reach the forge only through these
+five operations.
 
-## The five operations
-
-Everything phases 1, 8, 9 and 10 need, and nothing else:
-
-| # | operation | why the skill needs it |
+| # | operation | used for |
 | --- | --- | --- |
-| 1 | **default branch** | what to rebase onto and target, when the declaration does not say |
-| 2 | **open or update a change request**, body from a file | phase 8; human-facing intent, change, risk and testing |
-| 3 | **the head commit** the change request would merge | verify the checked commit is still current |
-| 4 | **watch the pipeline** to a terminal state | phase 9; a pipeline still running is not a green one |
-| 5 | **read and answer the feedback** on a change request | phase 10; a thread nobody answered is not a published change |
+| 1 | **default branch** | the base, when the declaration names none |
+| 2 | **open or update a change request**, body from a file | phase 8 |
+| 3 | **the head commit** the change request would merge | the current-head checks |
+| 4 | **watch the pipeline** to a terminal state | phase 9; running is not green |
+| 5 | **read and answer the feedback** on a change request | phase 10 |
 
-A change request is a pull request on GitHub and a merge request on GitLab. The
-skill says "change request" where the difference does not matter and uses the
-forge's own word when talking to a user.
+Say "change request" where the forge does not matter, and the forge's own word
+(pull request, merge request) to a user.
 
 ## Choosing the adapter
 
-`forge:` in the gate declaration wins. Otherwise read the remote:
+`forge:` in the declaration wins; otherwise match the host of
+`git remote get-url origin`. Run the adapter's auth check (`# 0`) before phase
+2. An unauthenticated CLI makes the publish `skipped`; do not retry in a loop.
 
-```sh
-git remote get-url origin
-```
-
-Match the host, and confirm the CLI is authenticated before phase 2 rather than
-discovering it at phase 8, after the branch is already pushed. An
-unauthenticated CLI is a `skipped` publish, not a retry loop.
+File-valued API fields use `-F body=@<path>` in both CLIs. `-f body=@<path>`
+sends the literal string `@<path>`.
 
 ## GitHub, through `gh`
 
@@ -45,8 +36,8 @@ gh run view <run-id> --log-failed                               # 4, reading a r
 gh pr checks <number>                                           # 5, the review checks too
 ```
 
-Operation 5 is one query and three ways of answering it. The query is GraphQL,
-because REST cannot say whether a thread is resolved:
+Operation 5 reads through GraphQL, because REST cannot say whether a thread is
+resolved:
 
 ```sh
 gh api graphql -F owner='{owner}' -F repo='{repo}' -F number=<number> -f query='
@@ -63,16 +54,14 @@ gh api graphql -F owner='{owner}' -F repo='{repo}' -F number=<number> -f query='
         comments(first: 100) { nodes { author { login } body url } } } } }'
 ```
 
-`reviewThreads` is every inline thread with its replies and its `isResolved`.
-`latestOpinionatedReviews` is where each reviewer stands now - what a required
-review check reads. `reviews` carries the review bodies, a bot's summary among
-them, and `comments` is the conversation below the change request. Past a
-hundred of any of them, page with that connection's `pageInfo` and `after`.
+`reviewThreads` are inline threads with `isResolved`; `latestOpinionatedReviews`
+is where each reviewer stands now; `reviews` carry review bodies, bot summaries
+among them; `comments` is the conversation. Past 100 of any connection, page
+with its `pageInfo` and `after`.
 
-Pipe the response through this filter, then through the ledger in
-[`feedback.md`](feedback.md). It keeps every thread and comment, and every
-review that says something: a review with an empty body that only commented is
-the envelope its inline threads came in, and those threads are already listed.
+Normalise the response with this filter, then run the ledger in
+[`feedback.md`](feedback.md). It drops only empty `COMMENTED` reviews, which are
+envelopes for threads already listed.
 
 ```jq
 .data.repository.pullRequest
@@ -100,15 +89,11 @@ gh api graphql -F thread=<thread-id> -f query='
 gh pr comment <number> --body-file <path>                       # 5, answer a conversation comment
 ```
 
-`-F body=@<path>` reads the reply out of a file. `-f body=@<path>` posts the
-literal string `@<path>` instead, so write the reply to a file and pass it
-with `-F`.
-
 ## GitLab, through `glab`
 
-Same five operations, GitLab's own field names: the head is `sha`, the body is
-`description`. `-R` takes the project's full URL so that a self-hosted instance
-is asked and not gitlab.com.
+The head is `sha` and the body is `description`. `:fullpath` comes from
+`origin`; pass `-R https://<host>/<group>/<project>` when `origin` is not the
+project, so a self-hosted instance is asked rather than gitlab.com.
 
 ```sh
 glab auth status                                                       # 0
@@ -121,25 +106,27 @@ glab ci status --branch <branch> --live                                # 4
 glab ci trace <job-id>                                                 # 4, reading a red job
 ```
 
-Operation 5, in GitLab's own words: a thread is a discussion, a comment is a
-note, and a conversation comment is a discussion holding one note.
+`--description` takes a string, so read the file in the command; never shorten
+the body to fit.
+
+Operation 5: a thread is a discussion, a comment is a note, and a conversation
+comment is a discussion holding one note.
 
 ```sh
 glab api --paginate 'projects/:fullpath/merge_requests/<number>/discussions' \
   | jq -s add                                                          # 5, one array however it pages
 glab api -X POST \
   'projects/:fullpath/merge_requests/<number>/discussions/<discussion-id>/notes' \
-  -f body=@<path>                                                      # 5, reply
+  -F body=@<path>                                                      # 5, reply
 glab api -X PUT \
   'projects/:fullpath/merge_requests/<number>/discussions/<discussion-id>?resolved=true'
 glab mr note <number> --message "<text>"                               # 5, a conversation comment
 ```
 
-`resolvable` and `resolved` sit on the discussion's first note, and a note with
-`system: true` is GitLab narrating itself - a label added, a branch pushed -
-rather than a reviewer. The discussions do not carry the head, so pass it in
-from operation 3 as `--arg head <sha>` to this filter, then pipe the result
-through the ledger in [`feedback.md`](feedback.md):
+`resolvable` and `resolved` sit on a discussion's first note; `system: true`
+notes are GitLab narrating itself. Discussions carry no head, so pass operation
+3's as `--arg head <sha>` to this filter, then run the ledger in
+[`feedback.md`](feedback.md):
 
 ```jq
 [.[] | .notes |= map(select(.system | not)) | select(.notes != [])]
@@ -153,88 +140,16 @@ through the ledger in [`feedback.md`](feedback.md):
      | {kind: "comment", author: .author.username, body, url: "#note_\(.id)"}]}
 ```
 
-`:fullpath` is filled in from `origin`; pass
-`-R https://<host>/<group>/<project>` when `origin` is not the project to read.
-
-Two differences that change behaviour rather than spelling:
-
-- **Squash.** A GitLab project can forbid squashing (`squash_option: never`).
-  The skill does not merge, so this is not its problem to solve, but say it in
-  the change request if the repository's own convention assumes a squash.
-- **`--description` takes a string, not a file.** Read the file in the command,
-  as above. Do not shorten the body to fit an argument you found awkward.
-
-## Infrastructure forms of operations 4 and 5
-
-For the conditional [infrastructure review](infra-plan.md), operation 4 also
-reads plan evidence and operation 5 creates or edits one conversation comment.
-These are forms of the existing operations, not another publishing path.
-Prefer an installed forge wrapper for operations it supports (for example
-`gh-axi`); use the underlying authenticated CLI for API features it lacks.
-
-### GitHub
-
-```sh
-gh run list --commit <head> --json databaseId,headSha,status,conclusion,url # 4
-gh run view <run-id> --json headSha,jobs,url                             # 4
-gh run view <run-id> --job <job-id> --log                                # 4
-gh run download <run-id> --name <plan-artifact> --dir <private-dir>       # 4
-gh api user --jq .login                                                 # 5, authenticated author
-gh api --paginate 'repos/{owner}/{repo}/issues/<number>/comments'         # 5, all pages
-gh api -X POST 'repos/{owner}/{repo}/issues/<number>/comments' -F body=@<path> # 5, create
-gh api -X PATCH 'repos/{owner}/{repo}/issues/comments/<comment-id>' -F body=@<path> # 5, update
-gh api 'repos/{owner}/{repo}/issues/comments/<comment-id>'                # 5, read back
-```
-
-Collect every comment page into one array for the selection filter in
-`infra-plan.md`; normalize REST `user` to `author`. Use REST numeric IDs, not
-GraphQL node IDs. Inspect source SHA, checkout and artifact provenance even if
-the run is green. The run list must be paged if the relevant run is not returned.
-Only download artifacts into private, untracked storage. These
-[comment endpoints](https://docs.github.com/en/rest/issues/comments) preserve
-the exact selected comment; they never edit the PR body.
-
-### GitLab
-
-```sh
-glab api 'projects/:fullpath/merge_requests/<number>/pipelines'           # 4
-glab api 'projects/:fullpath/pipelines/<pipeline-id>'                     # 4, SHA and URL
-glab api --paginate 'projects/:fullpath/pipelines/<pipeline-id>/jobs?include_retried=true' # 4
-glab ci trace <job-id>                                                  # 4, plan log
-glab api user | jq -er '.username | select(type == "string" and length > 0)' # 5, authenticated author
-glab api --paginate 'projects/:fullpath/merge_requests/<number>/notes'    # 5, all pages
-glab api -X POST 'projects/:fullpath/merge_requests/<number>/notes' -F body=@<path> # 5, create
-glab api -X PUT 'projects/:fullpath/merge_requests/<number>/notes/<note-id>' -F body=@<path> # 5, update
-glab api 'projects/:fullpath/merge_requests/<number>/notes/<note-id>'     # 5, read back
-```
-
-Use the newest verified current-head preview job, including retried jobs and
-child/downstream pipelines selected by the workflow. Page pipeline listings
-when needed. Download a declared artifact with the repository's authenticated
-artifact mechanism when logs lack sufficient evidence. Inspect the actual
-checkout for merged-result pipelines; their SHA need not be the MR source SHA.
-Collect all note pages, excluding system notes, before selection. Use the
-[merge-request notes API](https://docs.gitlab.com/api/notes/), whose update is
-PUT, rather than a new `mr note` on every rerun. File-valued fields use
-`-F body=@<path>` in both CLIs; `-f` sends a literal
-string, including the `@` and path. The author filter fails for a missing or
-empty username; stop before selecting or writing a review if it fails. Pass
-`-R` for the origin project on self-hosted GitLab as in the main adapter.
-
-Both adapters read operation 3 before and after the saved review readback;
-head changes invalidate the review and require fresh evidence.
+A project can forbid squashing (`squash_option: never`). The skill does not
+merge, but say so in the change request when the repository assumes squash.
 
 ## Any other forge
 
-Stop, and say which forge and which operation is missing. Do not improvise: a
-`git push` and a link to a web form is not a change request the skill opened,
-and nothing downstream can verify a body nobody wrote.
+Stop, and say which forge and which operation is missing. A `git push` plus a
+link to a web form is not a change request this skill opened.
 
-Adding a forge means giving all five operations, with a way to read the head as
-a full commit sha and a way to wait for a pipeline rather than sample it. A
-forge that cannot do operation 3 cannot verify the checked head, a forge
-that cannot do operation 4 makes phase 9 permanently `skipped`, and one that
-cannot do operation 5 makes phase 10 permanently `skipped` - and each of those
-blocks.
-Half of an adapter is worse than none, because the missing half is discovered
-after the push.
+A new adapter needs all five operations, including the head as a full commit
+sha and a pipeline wait rather than a sample. Without operation 3 the head
+cannot be verified; without 4 phase 9, and without 5 phase 10, is always
+`skipped`, which blocks. Half of an adapter is worse than none: the missing half
+is discovered after the push.
