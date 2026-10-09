@@ -6,141 +6,98 @@ license: MIT
 
 # publish
 
-Committed work goes out through one door. This skill is the door: it reviews the
-change, runs the gate the repository declares for itself, pushes, opens the
-change request, and waits for continuous integration. It reports done only when
-the pipeline is green for the current head. The change request body explains
-the intent, change, risk and testing in plain language. The final report names
-the checked head and the gate results.
-
-A change request is a pull request on GitHub and a merge request on GitLab. The
-gate is the same either way; only phases 1, 8, 9 and 10 touch the forge, and they go
-through the adapter table in [`references/forge.md`](references/forge.md).
+Review the branch, run the gate the repository declares, push, open the change
+request (a pull request on GitHub, a merge request on GitLab), wait for CI and
+answer feedback. Done means green CI and settled feedback for the current head.
+Only phases 1, 8, 9 and 10 touch the forge, through the adapter table in [`references/forge.md`](references/forge.md).
 
 ```
-  "ship this"
-      │
-      ▼
   0 precedence ──── someone else's gate? ──▶ hand over and stop
-      │
-  1 preflight       branch, clean tree, forge, base
-  2 rebase          onto the base branch, fresh from the remote
+  1 preflight       branch, clean tree, forge, base, existing change request
+  2 rebase          onto the fresh base
   3 review     ◀─┐  adversarial, against this repository's rules
-      │          │
-      └─ fixes ──┘  iterate until a round finds nothing
-      │
-  4 gate            exactly the steps the repository declares
-  5 documentation   what the change made stale, committed on its own
-  6 commit          the fixes review and the gate produced
+      └─ fixes ──┘  until a round finds nothing
+  4 gate            exactly the declared steps
+  5 documentation   what the change made stale, its own commit
+  6 commit          the review and gate fixes
   7 push
   8 change request  four human-facing headings
-  9 CI              watch it; review infrastructure plans when applicable
+  9 CI              wait for it; infrastructure plan review when applicable
  10 feedback   ◀─┐  every review, thread and comment, answered and resolved
-      │          │
       └─ fixes ──┘  back through review, gate, push, CI
-      │
-      ▼
-  green CI and feedback for the current head
 ```
 
-Every phase below reports one of four statuses, and the report turns them into a
-verdict. There is no fifth status and no way to leave a phase unreported:
-`passed`, `failed`, `skipped`, `not-applicable`.
+## Statuses
+
+Every step records exactly one status. There is no fifth status and no way to leave a phase
+unreported.
 
 | status | means |
 | --- | --- |
-| `passed` | it ran and it was clean |
-| `failed` | it ran and it was not clean |
+| `passed` | it ran and was clean |
+| `failed` | it ran and was not clean |
 | `skipped` | it should have run and could not - say why |
 | `not-applicable` | the repository declares it has no such step |
 
 **A `skipped` step and a `failed` step both block.** The verdict is `passed`
-only when every step is `passed` or `not-applicable`. Anything else is
-`blocked`, and a `blocked` verdict is reported to the user as not done. A step
-you could not run is never reported as one that passed, and "CI was still
-running" is never reported as green.
+only when every step is `passed` or `not-applicable`; anything else is
+`blocked`, reported as not done. A step you could not run is never reported as one that passed, and
+"CI was still running" is never green.
 
 ## Claim only what was verified here
 
-Everything this skill writes for somebody else to read - the change request
-body, a reply on a thread, a comment - is a claim about work that was done, and
-a reader has no way to check it except by trusting it. So there is one rule,
-and it holds in every phase below:
-
+Everything written for somebody else - the change request body, a reply on a
+thread, a comment - is a claim the reader can only trust.
 **Every statement must be backed by something run locally in this session**: a
-command, a test, a measurement, with its output read. Not what the code should
-do, not what the change is expected to fix - what was run here, and what it
-printed.
+command, test or measurement whose output you read.
 
-- Something that was not verified is left out, or it is **labelled as not
-  verified** in the same sentence that makes it. It is **never stated as fact**.
-- "The tests pass" means they were run here and they passed. A step that was
-  skipped is named as skipped in the body and final report.
-- A reply on a thread quotes the evidence briefly - the command and the line of
-  output that settles the point, not a promise about the next run.
-- A claim about another platform, another toolchain or another forge than the
-  one in front of you is unverified by definition. Say which one was exercised.
-
-This is the same discipline the statuses above encode, applied to prose: a
-sentence nobody ran is the `skipped` step of a change request body.
+- Anything not verified is left out or **labelled as not verified** in the same
+  sentence. It is **never stated as fact**.
+- A skipped step is named as skipped in the body and the final report.
+- A reply quotes the command and the output line that settles the point.
+- Another platform, toolchain or forge than the one exercised is unverified by
+  definition; name the one that was exercised.
 
 ## Phase 0 - precedence
 
-Three things outrank this skill. Check in this order and stop at the first hit.
+Stop at the first hit:
 
-1. **The repository's own skill.** A `publish`, `ship`, `release` or `deploy`
-   skill inside the repository being published knows things this one cannot.
+1. **A `publish`, `ship`, `release` or `deploy` skill inside the repository.**
    Run that instead.
-2. **An installed gate tool.** If the repository root has a gate tool's own
-   config and that tool is set up in this clone, it is already the door. Running
-   both pushes twice and opens two change requests.
-3. **An explicit instruction in the repository's agent rules** naming a
-   different way to publish.
+2. **An installed gate tool** - its config at the repository root and the tool
+   set up in this clone. Running both pushes twice and opens two change
+   requests.
+3. **The repository's agent rules name another way to publish.**
 
-Nothing found: this skill is the door. Continue.
+Nothing found: continue.
 
 ## Phase 1 - preflight
 
-Establish four facts and stop if any of them is wrong.
-
 ```sh
 git rev-parse --abbrev-ref HEAD          # not the base branch
-git status --porcelain                   # empty; this skill publishes commits
+git status --porcelain                   # empty
 git rev-parse --short HEAD
-git remote get-url origin                # which forge this is
+git remote get-url origin                # which forge
 ```
 
-- **Working tree must be clean.** This skill publishes committed work. Uncommitted
-  changes are the user's to keep or commit; do not commit them on their behalf
-  and do not discard them. Stop and say what is uncommitted.
-- **Never publish from the base branch.** If `HEAD` is the base, stop and ask for
-  a branch name. Do not create one silently - the user may have meant to commit
-  somewhere else entirely.
-- **The forge** comes from `forge:` in the gate declaration, or from the origin
-  host. Read [`references/forge.md`](references/forge.md) now and pick the
-  adapter: it is the five operations phases 1, 8, 9 and 10 need, one command
-  each.
-  **Check the forge CLI is authenticated here, before phase 2** - an
-  authentication failure discovered at phase 8 is one discovered after the push.
-  A forge with no adapter is a stop, not an improvisation: `git push` and a link
-  to a web form is not a change request this skill opened, and nothing
-  downstream can verify a body nobody wrote.
-- **A change request already open from this branch** makes this a re-publish,
-  and a re-publish starts by reading what the last one was told. Ask the forge
-  for it (operation 2's update form needs the number anyway), and if there is
-  one, work **phase 10** now, before the review: its checklist of maintainer
-  comments is input to this round of fixes, not an afterthought once the branch
-  has already been pushed again.
-- **The base branch** is, in order: `base:` in the gate declaration, else the
-  forge's default branch (operation 1). Fall back to
-  `git symbolic-ref refs/remotes/origin/HEAD` and then to `main` only if the
-  forge cannot be asked, and say in the final report which one you used.
-
-Then read the gate declaration -
-[`references/gate.md`](references/gate.md) has the file, the keys and the
-discovery order for a repository that declares nothing. Read it now: the rest of
-this skill runs the steps it returns, and a gate you could not resolve is a
-`skipped` step, not an assumption.
+- **Working tree must be clean.** Stop and say what is uncommitted;
+  do not commit them on their behalf and do not discard them.
+- **Never publish from the base branch.** Stop and ask for a branch name;
+  never create one silently.
+- **Gate:** read [`references/gate.md`](references/gate.md). Read it now: it
+  resolves the declaration, including `forge:` and `base:`, and the steps phase
+  4 runs. A gate you could not resolve is `skipped`.
+- **Forge:** read [`references/forge.md`](references/forge.md) and pick the
+  adapter from `forge:` or the origin host.
+  **Check the forge CLI is authenticated here, before phase 2**, not after the
+  push; if it is not, stop.
+  A forge with no adapter is a stop, not an improvisation.
+- **Base branch:** `base:` in the declaration, else the forge's default branch
+  (operation 1). Only if the forge cannot be asked, fall back to
+  `git symbolic-ref refs/remotes/origin/HEAD`, then `main`, and report which.
+- **A change request already open from this branch** makes this a re-publish:
+  find it (operation 2's update form needs its number) and work **phase 10**
+  now, before the review, so the waiting comments are fixed in this round.
 
 ## Phase 2 - rebase
 
@@ -149,293 +106,200 @@ git fetch origin
 git rebase origin/<base>
 ```
 
-Rebase before reviewing, not after. Reviewing a diff against a stale base means
-reviewing code that will not exist after the merge, and every finding you spend
-a round fixing may be a finding about somebody else's already-merged work.
-
-Conflicts are the user's call. Stop, name the conflicted paths, and let them
-choose - a conflict resolved by an agent guessing at intent is the one mistake
-this whole gate cannot catch afterwards.
+Rebase before reviewing, so the review sees what will merge. Conflicts are the
+user's call: stop and name the conflicted paths.
 
 ## Phase 3 - review
 
-**This is the product.** Everything after it is plumbing. Measured against the
-tool this replaces, the review step produced the large majority of the fixes and
-the other steps produced a handful between them, so give it the time and the
-rounds it needs and do not rush to phase 4.
-
 Read [`references/review.md`](references/review.md) before the first round and
-follow it. In outline:
+follow it: the repository's rules, the whole branch diff, a failure scenario for
+every finding, rounds until one is clean, capped at five. A review that ends
+`failed` stops the publish before the push. Most fixes come from this phase;
+give it the rounds it needs.
 
-1. Read the repository's own rules first - the declaration's `review.rules`,
-   then the agent and contributor instructions the repository ships. Review
-   against those, not against generic taste.
-2. Review the whole branch, `git diff $(git merge-base origin/<base> HEAD)...HEAD`,
-   not the last commit.
-3. Every finding carries a concrete failure scenario: the input or state, and
-   the wrong result it produces. **A finding with no failure scenario is not a
-   finding** - drop it. That rule is what keeps the step precise enough to be
-   worth the rounds.
-4. Fix what you find, then review again - the fixes are new code and new code is
-   unreviewed code. Iterate until a round finds nothing.
-5. Cap it at five rounds. Still finding real defects at round five means the
-   change is not ready: stop, report `failed`, and do not push.
+**thurview**, when available, adds callers and tests the diff does not show. It
+is optional and never a requirement; the reference covers detection, updating
+and running it.
 
-**thurview**, when this machine has it, reviews the same branch against a code
-graph of the callers and tests the diff does not show, and its rows feed the
-same rounds. The reference says how to detect it, how to bring it up to date
-before it runs, and what to do when the registry cannot be reached. It is
-optional and it is never a requirement: without it, the review above is the
-review, and the step passes on its own merits.
+**Infrastructure** - including infrastructure directories in a mixed
+repository - adds a conditional `infra-plan` step. Decide impact from the
+repository rules, the diff and the actual plan workflow; when affected, read
+[`references/infra-plan.md`](references/infra-plan.md) now to inventory scopes
+and arrange read-only preview evidence. Otherwise record `not-applicable`.
 
-**Infrastructure changes**, including infrastructure directories in mixed
-repositories, require a plan review. Determine impact from repository rules,
-the relevant diff and actual plan workflow. Read
-[`references/infra-plan.md`](references/infra-plan.md) now when infrastructure
-is affected: inventory expected scopes and arrange read-only preview evidence.
-It is a conditional `infra-plan` step; application-only changes record
-`not-applicable` and keep the existing flow.
-
-Record for the final report: rounds run, findings raised, findings fixed, and -
-when thurview ran - the command it ran, pinned to its version, as the review
-step's `command`.
+Record rounds, findings raised and fixed, and - when thurview ran - its pinned
+command as the review step's `command`.
 
 ## Phase 4 - gate
 
-Run exactly the steps the declaration returned, in the order it lists them, from
-the repository root, and nothing else. Do not add a step because the toolchain
-suggests one, and do not drop a step because it looks redundant - a gate the
-repository declared and this skill quietly skipped is the failure this design
-exists to prevent.
+Run exactly the declared steps, in order, from the repository root. Do not add
+a step the toolchain suggests, and do not drop a step because it looks redundant.
 
-A step may carry `instructions`: the repository's own notes on that step, as
-text. Read them before you run it, and keep them in front of you whenever you
-handle it - running it, reading its failure, fixing it. If you hand any of that
-to another agent, hand the instructions over with it, as written. A step with
-none runs exactly as below.
+A step's `instructions` are the repository's notes on it: read them before
+running it and keep them while you run it, read its failure or fix it. Hand
+them over verbatim with any of that work.
 
-For each step:
+- **Passes:** `passed`, with the command.
+- **Fails:** run its `fix:` command if declared, fix the cause, re-run. Fixes are
+  code: they go back through phase 3.
+- **Cannot run** (missing command, toolchain or credential): `skipped` with the
+  reason. It blocks; tell the user now.
 
-- **It passes.** Record `passed` with the command.
-- **It fails.** Fix the cause, not the symptom. Run the step's `fix:` command
-  first if it declares one, then re-run the step. Fixes are code, so anything
-  they touch goes back through phase 3 before you move on.
-- **It cannot run at all** - the command is missing, a toolchain is not
-  installed, it needs a credential you do not have. Record `skipped` and the
-  reason in the step's own words, and remember that this blocks the verdict.
-  Say it out loud to the user too; a blocked publish they do not hear about is
-  a publish that silently did not happen.
-
-Never edit the declaration to make a step pass. If a declared command is wrong,
-that is a finding to report, not a file to change on the way past.
+Never edit the declaration to make a step pass. A wrong declared command is a
+finding to report.
 
 ## Phase 5 - documentation
 
-The review flags a doc the diff made untrue. This phase is where the
-documentation catches up with the change. Walk what the change touches and
-update whatever it made stale:
+Update what this change made stale:
 
-- the README, and any usage or help text,
-- reference docs and their examples, including an example that no longer runs,
-- the changelog, if the repository keeps one, in its own format,
-- comments beside changed code that describe behaviour that is gone.
+- the README, usage and help text,
+- reference docs and examples, including one that no longer runs,
+- the changelog, if kept, in its own format,
+- a comment beside changed code that describes behaviour that is gone.
 
-Only what this change made stale. A doc that was already wrong before this
-branch is a finding to report, not a rewrite to slip in.
-
-If anything changed, run phase 4's steps again - a repository that checks its
-docs has just had them change under its tests. Then commit the documentation on
-its own, staging only the files this phase touched; a file the review or the
-gate also changed goes into phase 6's commit instead.
+A doc that was already wrong is a finding, not a rewrite to slip in. If
+anything changed, re-run phase 4's steps, then commit only this phase's files
+(a file the review or gate also changed goes into phase 6):
 
 ```sh
 git add <the files this phase changed>
 git commit -m "docs: <what the change made stale>"
 ```
 
-Record a `documentation` step: `passed` when it ran, whether it updated
-something or found nothing stale; `failed` with the reason when a stale doc
-could not be brought in line; `skipped` with the reason when it could not run.
-Nothing changed: no commit, and the step is still `passed`.
+Record a `documentation` step: `passed` when it ran, whether or not anything
+was stale; `failed` when a stale doc could not be fixed; `skipped` when it could
+not run.
 
 ## Phase 6 - commit
 
-Commit what phases 3 and 4 changed, separately from the work being published, so
-a reviewer can read the original change without the gate's corrections mixed
-into it. Conventional-commit subjects, imperative mood, and say what the fix
-was for:
+Commit the review and gate fixes separately from the published work, with a
+conventional subject saying what each fix was for. Nothing changed: no commit.
 
 ```sh
 git add -A
 git commit -m "fix: <what the review or the gate found>"
 ```
 
-Nothing changed: no commit. An empty commit is a lie about what the gate did.
-
 ## Phase 7 - push
 
 ```sh
 git push --force-with-lease origin HEAD
-```
-
-`--force-with-lease` and never `--force`: phase 2 rewrote this branch, and the
-lease is what stops the push from erasing a commit somebody else put on it while
-you were reviewing.
-
-Capture the head that is now on the remote for the final report and
-exact-head checks.
-
-```sh
 git rev-parse HEAD
 ```
 
+`--force-with-lease` and never `--force`: the rebase rewrote the branch, and the
+lease keeps a commit somebody else pushed meanwhile. Keep the pushed head for
+the head checks.
+
 ## Phase 8 - change request
 
-Start from
-[`templates/change-request-body.md`](templates/change-request-body.md), fill it
-in, and delete every instruction comment as you answer it. What ships must read
-as prose a teammate wrote, under exactly four headings: `## Intent`,
-`## What Changed`, `## Risk Assessment`, `## Testing`. State any skipped
-checks honestly. Do not put an attestation heading, JSON block, marker or
+Fill [`templates/change-request-body.md`](templates/change-request-body.md) and
+delete its comments. The body is teammate prose under exactly four headings:
+`## Intent`, `## What Changed`, `## Risk Assessment`, `## Testing`. Name
+skipped checks. Do not put an attestation heading, JSON block, marker or
 hidden attestation comment in the body or in a comment.
 
-Open it with operation 2 from your adapter, or update the one that is already
-open from this branch rather than opening a second one.
-
-The remote may squash-merge, in which case the title becomes the commit on the
-base branch. Write it as that commit message: conventional-commit prefix,
-imperative, no trailing period.
+Open it with operation 2, or update the one already open from this branch. The
+title may become the squash commit: conventional prefix, imperative, no
+trailing period.
 
 ## Phase 9 - CI
 
-Watch the pipeline with operation 4 from your adapter, and read a failing job
-with the log command beside it. Wait for it. This is the phase with the only
-failure mode that matters, so it has one rule and the rule has no exceptions:
-**a red pipeline is not done, and a pipeline still running is not done either.**
+Watch the pipeline with operation 4 from your adapter, and read a failing job's
+log with the command beside it. One rule: **a red pipeline is not done, and a
+pipeline still running is not done either.**
 
-- **Green.** Every required check succeeded. Record `passed` with the run URL.
-- **Red.** Read the failing job's log, fix the cause, and go back to phase 3 -
-  the fix is new code. Then push again and recheck CI for the new head. Update the body if
-  its testing account changed.
-- **No pipeline exists at all.** Only `ci.required: false` in the declaration
-  makes that `not-applicable`. Without it, a repository with no checks is
-  `skipped`, and the verdict is `blocked` until someone says in the declaration
-  that this repository genuinely has no CI.
-- **Still running past `ci.timeout`.** `skipped`, with how long you waited. It
-  blocks, and that is the honest answer - say the pipeline is still going and
-  let the user decide whether to wait.
+- **Green:** every required check succeeded. `passed`, with the run URL.
+- **Red:** fix the cause, back to phase 3, push, and recheck CI for the new
+  head. Update the body if its testing account changed.
+- **No pipeline:** `not-applicable` only with `ci.required: false`; otherwise
+  a repository with no checks is `skipped`, blocked until the declaration sets
+  `ci.required: false`.
+- **Still running past `ci.timeout`.** `skipped`, with how long you waited; let
+  the user decide whether to wait longer.
 
-For infrastructure changes, complete the plan review in
-[`references/infra-plan.md`](references/infra-plan.md) after the preview jobs
-finish: post or update its six-section comment through the adapter, including
-current-head evidence or explicit gaps. Missing, stale or partial evidence blocks
-`infra-plan` even when other CI is green. This posting is automatic when this
-skill is invoked; it never authorizes apply, deploy, state writes or merge.
+For infrastructure, after the preview jobs finish, complete the plan review in
+[`references/infra-plan.md`](references/infra-plan.md): post or update its
+six-section comment with current-head evidence or named gaps. Missing, stale or
+partial evidence blocks `infra-plan` even when CI is green. Invoking this skill
+authorizes that comment; never apply, deploy, write state or merge.
 
 ## Phase 10 - feedback
 
-A change request with an unanswered comment on it is not published, it is
-waiting. This phase is where it stops waiting. On a first publish it runs once,
-here, after CI: that is when the reviews that matter most - a bot's, a
-maintainer's - arrive. On a re-publish it runs twice, because phase 1 sent you
-here before the review, so that the comments already waiting are fixed in the
-same round as everything else.
+A comment nobody answered means the change request is still waiting. On a first
+publish this runs once, after CI; on a re-publish it also runs before the review
+(phase 1).
 
-**Read everything, through operation 5 of your adapter.** Not the unresolved
-ones, not the ones addressed to you: **every** review, inline thread, review
-comment and conversation comment on this change request, from humans and bots
-alike, your own account's included, with the thread each one belongs to and
-whether it is resolved. Read [`references/feedback.md`](references/feedback.md)
-now: its ledger turns the adapter's answer into one line per item, on any
-forge, and it says how to read a review bot's summary.
+**Read everything through operation 5**: **every** review, inline thread,
+review comment and conversation comment, from humans and bots alike, your own
+account's included, resolved or not. Read
+[`references/feedback.md`](references/feedback.md) now: it turns the adapter's
+answer into a ledger and says how to read a review bot's summary.
 
-**A summary is feedback too.** Do not stop at "no unresolved threads": a
-thurview-pr-review or Greptile summary below 5/5, one that still lists open
-findings, or one whose `Next:` line asks for a fix is open feedback, and its
-findings are items like any thread.
+**A summary is feedback too.** Even with no unresolved threads, a thurview or
+Greptile summary below 5/5, one listing open findings, or one whose `Next:`
+line asks for a fix is open, and its findings are items.
 
-**Wait for the reviewers who come after CI.** Review bots post minutes after a
-push. When CI is green - not on the pass phase 1 sends a re-publish on, before
-anything was pushed - keep reading for up to `feedback.wait` from the gate
-declaration, until every summary names the current head and no review check is
-pending; the reference has the rule. A score given to an older head is not a
-score for this one.
+**Wait for late reviewers.** Once CI is green - not on the pass phase 1 sends
+before anything was pushed - keep reading for up to `feedback.wait` until every
+summary names the current head and no review check is pending. A score for an
+older head is not a score for this one.
 
-**Keep a checklist, one item per comment.** Write it down before you fix
-anything: a comment worked from memory is the one that gets answered with a
-sentence nobody checked.
+**Write a checklist, one item per comment**, before fixing anything. For each:
 
-For each item, in this order:
+1. **Understand or reproduce it** - read the code; get a claimed behaviour in
+   front of you as a failing test, command or output.
+2. **Fix it, test first** when it is behaviour, then **verify it locally**: run
+   the test and the gate step that covers it, and read the output.
+3. **Or reply with the evidence why not** when it is wrong, out of scope or
+   already handled - the same burden of proof as a fix.
+4. **Reply on that thread** with what changed (file, commit, proof) and
+   **quote the local evidence**: command and output line. Then **resolve** it.
 
-1. **Understand or reproduce it.** Read the code it points at. If it claims a
-   behaviour, get that behaviour in front of you - a failing test, a command,
-   an output.
-2. **Fix it, test first** when it is about behaviour: the test that fails for
-   the reason the comment gives, then the fix that makes it pass. Then **verify
-   it locally** - run the test, run the gate step that covers it, and read what
-   it printed.
-3. **Or reply with the evidence why not**, when the comment is wrong, out of
-   scope, or already handled. That is a legitimate outcome, and it carries the
-   same burden of proof as a fix does.
-4. **Reply on that thread** saying what changed - the file, the commit, and
-   what now proves it - and **quote the local evidence**: the command you ran
-   and the line of its output. A reply that cannot point at something run here
-   says so plainly instead. Then **resolve** the thread.
+**A fix is new code**: back to phase 3, gate, commit, push, and recheck CI for
+the new head. Reply and resolve after that push, so the reply names a commit the
+forge has.
 
-**A fix is new code**, so it goes **back to phase 3** and forward from there:
-review it, run the gate, commit, push, and recheck CI for the new head. Reply
-and resolve after that push, so the thread names a commit the forge already has.
+**Loop until each bot is settled** - thurview at 5/5 with No open findings - or
+every point it raises is refuted with evidence. While looping:
 
-The change request is not done while:
+- A point **already answered** on an earlier pass and raised again in a new
+  thread is the same point: link the settling answer and resolve the new
+  thread rather than fixing it twice. The reply counts toward its rounds.
+- **Two rounds on the same point** and it is still raised: stop, record
+  `feedback` `failed`, and report the point, its link and both answers.
+- A **third pass** (the third push this phase made) still brings substantive new
+  findings: stop the same way.
 
-- any **unresolved thread** is open on it, or
-- any **review check** is failing - a review bot's check is a check like the
-  others, whether or not the branch protection requires it.
+Any **unresolved thread** or failing **review check** (a bot's check counts,
+required or not) makes the `feedback` step `failed`, with the open count. A
+forge that could not be asked is `skipped`. All answered and every review check
+green, or nothing to answer, is `passed`.
 
-Either one is a `failed` `feedback` step, with the count still open as its
-reason, and a `failed` step blocks the verdict. A forge that could not be asked
-at all is `skipped`, also blocking. Everything answered and every review check
-green is `passed`, and a change request nobody has commented on is `passed`
-too - it ran, and there was nothing to answer.
-
-A point that was **already answered** on an earlier pass is answered: reply
-pointing at the thread that settled it and resolve the new one, rather than
-fixing the same thing twice. Keep looping until each review bot is settled -
-thurview at 5/5 with No open findings - or every point it still raises is
-refuted with evidence. **Two rounds on the same point** is the cap: if it is
-still raised, stop, record the `feedback` step `failed`, and report the point
-with both answers. And if a **third pass** - the third push this phase made -
-still brings substantive new findings, stop the same way: a change request that
-grows a new defect every time it is touched is not one more round away from
-ready.
-
-When the phase ends, update the Testing section if its account of checks or
-feedback changed. Keep the body human-facing.
-
-Record a `feedback` step, and report the number of **threads answered** in the
-same breath as the verdict.
+When the phase ends, update the Testing section if its account changed; keep the
+body human-facing. Record the `feedback` step and the number of **threads
+answered**.
 
 ## Reporting
 
-Compute the verdict, then say it in one line before anything else.
+Say the verdict first, in one line.
 
-- Every step `passed` or `not-applicable` → verdict `passed` → report the change
-  request URL and that CI is green.
-- Anything else → verdict `blocked` → **say it is not done**, name every step
-  that is `failed` or `skipped`, and say what would unblock each one. The change
+- All `passed` or `not-applicable` → `passed`: the change request URL and green
+  CI.
+- Anything else → `blocked`: **say it is not done**, name every step
+  that is `failed` or `skipped`, and what would unblock each. The change
   request may well be open; that is not the same claim as published.
 
-Before reporting `passed`, read the change request head using operation 3 of
-[`references/forge.md`](references/forge.md). It must equal the pushed commit
-whose gate and CI results you checked. If it differs, review and run the gate
-and CI again for that head. Report the checked head and commands to the requester,
-not as a machine block in the change request.
+Before reporting `passed`, read the change request head (operation 3). It must
+equal the pushed head whose gate and CI you checked; otherwise review, gate and
+CI again for that head. Report the checked head and commands to the requester,
+never as a machine block in the change request.
 
-For infrastructure changes, verify the saved plan-review comment again at that
-head using [`references/infra-plan.md`](references/infra-plan.md). Report its URL,
-plan scopes and `infra-plan` status; an old-head review cannot pass.
+For infrastructure, re-verify the saved plan review at that head
+([`references/infra-plan.md`](references/infra-plan.md)) and report its URL,
+scopes and `infra-plan` status.
 
-Report the review state at that head from a last read of the ledger: the
-thurview score and the head it reviewed, Greptile's score, head and check, and
-the threads resolved after a fix, answered without one, and still open. A
-reviewer that never posted is reported as never posted, not as clean.
+Report the review state at that head from a last read of the ledger: thurview's
+score and reviewed head, Greptile's score, head and check, and threads resolved
+after a fix, answered without one, and still open. A reviewer that never posted
+is reported as never posted, not as clean.

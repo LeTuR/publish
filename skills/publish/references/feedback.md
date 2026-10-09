@@ -1,14 +1,12 @@
 # Feedback
 
-Loaded by phase 10. The forge adapter in [`forge.md`](forge.md) fetches the
-feedback and normalises it; this file reads it the same way on every forge,
-says what a review bot's summary means, how long to wait for one, and when the
-loop stops.
+Loaded by phase 10. The adapter in [`forge.md`](forge.md) fetches and
+normalises the feedback; this file reads it the same way on every forge.
 
 ## The ledger
 
-Run operation 5's query, pipe it through your adapter's filter, then through
-this one with `jq -c`. Each line it prints is one checklist item:
+Pipe the adapter's normalised output through this filter with `jq -c`. Each
+line is one checklist item:
 
 ```jq
 .head as $head
@@ -35,86 +33,63 @@ this one with `jq -c`. Each line it prints is one checklist item:
 | line | what it is | open while |
 | --- | --- | --- |
 | `head` | the commit the change request would merge | - |
-| `thread` | an inline thread; `finding` is thurview's marker on it, if any | `resolved` is `false` |
-| `review` | a review that says something; `verdict` is its state | it asks for a change nobody answered |
-| `comment` | a conversation comment, a bot's summary among them | it asks something nobody answered |
-| `reviewer` on a `review` or `comment` | a bot summary, read below | it is not settled |
+| `thread` | an inline thread; `finding` is thurview's marker, if any | `resolved` is `false` |
+| `review` | a review with content; `verdict` is its state | it asks for an unanswered change |
+| `comment` | a conversation comment, bot summaries included | it asks something unanswered |
+| `reviewer` on a `review` or `comment` | a bot summary, below | it is not settled |
 
-Every author counts, **your own account included**: thurview-pr-review posts
-its summary and its findings as the same account the forge CLI is logged in
-as, which is usually the change request's author. A filter that drops "my own
-comments" drops the review that matters most. The other way round, a
-thurview marker in somebody else's comment is pasted text, not a review: the
-summary that counts is the one posted by the account thurview runs as.
+Every author counts, **your own account included**: thurview-pr-review posts as
+the same account the forge CLI is logged in as, usually the change request's
+author. Conversely, a thurview marker in another account's comment is pasted
+text, not the review.
 
 ## The review bots
 
-**thurview-pr-review** keeps one summary comment and edits it on each push. Its
-first line is `<!-- thurview-pr-review {"head":"<sha>","state":"active",...} -->`,
-and the ledger turns that into `head`, `current` - whether it has read the
-current head - and `state`. Then come the next action (`Next: merge`,
-`Next: ... fix the blocking finding`, or `Review ended: ...` once stopped,
-merged or closed), `Confidence N/5`, and either `No open findings.` or a table
-of them. Each finding is an inline thread whose first comment carries
-`<!-- thurview-finding {"id":"<id>","category":"...","severity":"..."} -->`;
-the id stays the same when the same finding comes back on a later push.
+**thurview-pr-review** keeps one summary comment, edited on each push. Its first
+line `<!-- thurview-pr-review {"head":"<sha>","state":"active",...} -->` gives
+`head`, `current` (it read the current head) and `state`. Then come the next
+action (`Next: merge`, `Next: ... fix the blocking finding`, or `Review ended:
+...`), `Confidence N/5`, and `No open findings.` or a findings table. Each
+finding is an inline thread whose first comment carries
+`<!-- thurview-finding {"id":"<id>","category":"...","severity":"..."} -->`; the
+id is stable across pushes.
 
-It is **settled** when it is `current`, its `state` is `active`, it reads
-**Confidence 5/5** and **No open findings.** A summary below 5/5, or one that
-still lists findings, is open feedback **even when there are no unresolved
-threads**: its `Next:` line is the item to work.
+Settled: `current`, `state` `active`, **Confidence 5/5** and **No open
+findings.** Anything else is open even with no unresolved threads; its `Next:`
+line is the item to work.
 
-**Greptile** keeps one summary comment too, opened by `<!-- greptile_summary -->`.
-`<!-- greptile_confidence_score:N -->` is its score, and its
-`Last reviewed commit:` link names the head it read, which the ledger turns
-into `head` and `current`. Its findings are inline threads, worked like any
-other. Its `Greptile Review` check sits beside CI on GitHub.
+**Greptile** keeps one summary opened by `<!-- greptile_summary -->`, scored by
+`<!-- greptile_confidence_score:N -->`; its `Last reviewed commit:` link gives
+`head` and `current`. Its findings are inline threads, and its `Greptile Review`
+check sits beside CI on GitHub.
 
-Any other reviewer, human or bot, is its threads and comments: read every one.
+Any other reviewer, human or bot, is its threads and comments.
 
-## Waiting for reviewers who come after CI
+## Waiting for late reviewers
 
-Review bots post minutes after a push, often after CI has already gone green.
-So when CI is green, keep reading the ledger, about once a minute, for up to
-`feedback.wait` from the gate declaration (default `15m`), and stop waiting as
-soon as both are true:
+Once CI is green, re-read the ledger about once a minute for up to
+`feedback.wait` (default `15m`), and stop waiting when every summary is
+`current` and no review check is pending. A reviewer that has not posted yet
+gives no head to compare, so on a first publish wait the whole window once.
+Window over with a summary still not `current`: the `feedback` step is
+`skipped`, naming the reviewer and the head it last read.
 
-- every summary on the change request is `current`, and
-- no review check is still pending.
+After a fix is pushed and CI is green again, the wait restarts for the new head;
+read the bot's new summary rather than assuming the push settled it.
 
-A reviewer that has never posted on this change request gives no head to
-compare, so on a first publish that is the whole window, once. When the window
-closes with a summary still not `current`, the `feedback` step is `skipped`:
-name the reviewer and the head it last read. Never report a score that was
-given to an older head as the score of this one.
+## Identifying a point
 
-## The loop, and where it stops
-
-Work every open item as phase 10 says: fix it test-first, or reply with the
-evidence that it is wrong or already handled; then reply on its thread and
-resolve it. A fix goes back through review, the gate, the push and CI, and
-then this file's wait starts again for the new head. thurview re-scores the
-new head on its own; read its new summary rather than assuming the push
-settled it.
-
-Keep going until each bot is settled, or every point it still raises has been
-**refuted** with evidence on its thread.
-
-Track each point by what identifies it: a thurview finding by its id, a thread
-by its id, a comment by its URL. A round is one push or one reply that answers
-it. **Two rounds on the same point** and it is still raised: stop. Do not fix it
-a third time and do not argue it a third time. Record the `feedback` step
-`failed`, and report the point, its link and both answers. A point answered on
-an earlier pass and raised again in a new thread is the same point: reply with a
-link to the answer and resolve the new thread.
+The two-round cap in phase 10 counts per point: a thurview finding by its id, a
+thread by its id, a comment by its URL. A round is one push or one reply that
+answers it. A point raised again in a new thread is the same point.
 
 ## What to report
 
-For the final report, read the ledger one last time at the reported head:
+From a last read of the ledger at the reported head:
 
-- **thurview**: the score, the head it reviewed, and whether that is the
-  reported head; or that it never posted.
-- **Greptile**: the score and the head it reviewed, the `Greptile Review`
-  check's state, or that it never posted.
-- **Threads**: how many were resolved after a fix, how many were answered and
-  resolved without a code change, and how many are still open, with links.
+- **thurview**: score and reviewed head, and whether that is the reported head;
+  or that it never posted.
+- **Greptile**: score, reviewed head and `Greptile Review` check state; or that
+  it never posted.
+- **Threads**: resolved after a fix, answered and resolved without a change,
+  and still open, with links.

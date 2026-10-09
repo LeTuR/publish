@@ -1,79 +1,81 @@
 # Infrastructure plan review
 
-Loaded in phase 3 for infrastructure changes; completed after phase 9 and
-verified again before Reporting. Publishing authorizes posting and updating this
-review automatically. Repository precedence still wins. This is a preview
-review, never authorization to apply or merge.
+Loaded in phase 3 when infrastructure is affected, completed after phase 9 and
+verified again before Reporting. Invoking publish authorizes posting and
+updating this review comment. It never authorizes apply, deploy, state writes
+or merge, and repository precedence (phase 0) still wins.
 
-## Recognize and obtain evidence
+## Scope
 
-Read repository rules, the branch diff, and actual plan/apply workflows together.
-Look for Terraform/OpenTofu, Terragrunt units, Pulumi previews, CloudFormation
-change sets, or other declared infrastructure tooling. Include infrastructure
-subdirectories in mixed application repositories, shared modules, variables,
-provider/lockfile changes and workflow changes affecting the plan. A filename
-alone neither proves nor rules out infrastructure impact. Determine all affected
-units, environments and workspaces from the workflow's selection rules. An
-application-only change with no infrastructure impact records `infra-plan` as
-`not-applicable`; it adds no comment and changes no existing publish behavior.
+Read the repository rules, the branch diff and the actual plan/apply workflows
+together: Terraform/OpenTofu, Terragrunt units, Pulumi previews, CloudFormation
+change sets or other declared tooling. Include infrastructure subdirectories in
+mixed repositories, shared modules, variables, provider and lockfile changes,
+and workflow changes that affect the plan. A filename neither proves nor rules
+out impact. No infrastructure impact: `infra-plan` is `not-applicable`, with no
+comment.
 
-Maintain an explicit list of expected scopes before fetching plans. Record each
-scope's directory/unit, environment/workspace, backend identity (redacted if
-sensitive), tool and checked version, command/flags, variables' provenance
-(without values), and whether dependencies or targeting restrict coverage.
-Include affected downstream units for a shared module. Uncertain selection is a
-coverage gap, not permission to choose only the successful jobs.
+Before fetching plans, list every expected scope from the workflow's selection
+rules, including downstream units of a shared module. For each, record the
+unit or directory, environment or workspace, backend identity (redacted if
+sensitive), tool and checked version, command and flags, variable provenance
+(never values), and any dependency or target restriction on coverage. Uncertain
+selection is a coverage gap, not permission to keep only the successful jobs.
+
+## Evidence
 
 Use the repository's declared read-only preview command or CI plan job, through
-operation 4 of the [forge adapter](forge.md). Inspect the command and workflow
-before running or triggering it: a job called "plan" can still mutate state or
-run apply hooks. Never apply, deploy, import into live state, run refresh/write
-state commands, or merge to obtain evidence. Reading remote objects during a
-plan is acceptable; persisting refreshed state is not. Do not trigger a pipeline
-that also deploys. If no safe declared preview exists, record the gap and stop
-that step. Use existing pinned tools; do not install a guessed version.
+operation 4 ([forge commands](#forge-commands)). Inspect the command and
+workflow first: a job called "plan" can still mutate state or run apply hooks.
 
-For every selected plan, read the actual output/artifact, not just its green
-check or an old bot comment. Record the current full PR/MR head, commit link,
-run/pipeline and job links, scope, timestamp and provenance of the artifact.
-Verify the run's source SHA and the artifact's input checkout: a synthetic merge
-SHA needs verified head/base ancestry and its exact checkout identified; a reused
-artifact from another run or head is stale. Local previews must run on the clean
-checked head with identical declared inputs; link the current commit and the
-relevant workflow/job, explicitly saying that the preview was local and not that
-job's artifact. If no run or job exists, say so; do not invent links. Inspect
-plan exit semantics: Terraform/OpenTofu detailed exit code 2 means changes, not
-a failed plan. CI job success alone does not establish a complete plan.
+- Never apply, deploy, import into live state, run refresh or other
+  state-writing commands, or merge to get evidence. Reading remote objects
+  during a plan is fine; persisting refreshed state is not.
+- Never trigger a pipeline that also deploys. No safe declared preview: record
+  the gap and stop the step.
+- Use the pinned tools already there; never install a guessed version.
 
-Missing, partial, deferred, failed, inaccessible or stale evidence makes that
-scope unreviewed. Never replace a missing current plan with an old-head plan,
-and never turn a subset into a clean whole-change verdict. Post/update the same
-comment with explicit gaps even when evidence is unavailable. Bound fetching and
-reruns by `ci.timeout`; if evidence cannot be obtained safely, report `skipped`
-(or `failed` for a failed preview), which blocks publish success.
+For every selected plan, read the actual output or artifact, not a green check
+or an old bot comment. Record the full current head, its commit link, run or
+pipeline and job links, scope, timestamp and artifact provenance.
 
-## Inspect and count
+- Verify the run's source SHA and the artifact's checkout. A synthetic merge SHA
+  needs verified head/base ancestry and its exact checkout; an artifact reused
+  from another run or head is stale.
+- A local preview must run on the clean checked head with the same declared
+  inputs. Link the commit and relevant workflow or job, and say it was local,
+  not that job's artifact. No run or job: say so; never invent links.
+- Terraform/OpenTofu detailed exit code 2 means changes, not failure. A
+  successful job alone does not establish a complete plan.
 
-Use the tool's actual semantics. For Terraform/OpenTofu saved-plan JSON,
-`resource_changes[].change.importing` counts imports independently of actions;
-imports can also have in-place updates. Additions are exactly `["create"]`,
-changes `["update"]`, destructions `["delete"]`, and replacements either
-`["delete","create"]` or `["create","delete"]`. Count a replacement once,
-not again as an addition and destruction. Exclude data reads and output changes
-from managed-resource counts. Imports overlap action counts: never sum these
-five numbers as a unique-resource total. If quoting the CLI headline, label it
-separately: its adds/destroys can include replacement operations. Unknown action
-semantics require explicit unavailable counts, not guessed zeroes.
+Missing, partial, deferred, failed, inaccessible or stale evidence leaves that
+scope unreviewed. Never substitute an old-head plan or present a subset as the
+whole change. Still post or update the comment, naming the gaps. Bound fetching
+and reruns by `ci.timeout`; evidence that cannot be obtained safely is
+`skipped` (`failed` for a failed preview), and either blocks.
 
-The following optional jq filter is for a locally assembled evidence envelope,
-not arbitrary CI JSON. Set `head` from operation 3, `expected_scopes` from the
-workflow, and `plans` from inspected evidence. Each plan has `scope`, verified
-source `head`, `status` (`success` only when preview succeeded), `complete`
-(coverage verified independently, including older tools without a JSON flag),
-`run`, `job`, `provenance`, and `plan` (the saved-plan JSON). A missing link is a
-gap for this filter; describe genuinely local evidence manually instead. This
-filter produces counts and evidence gaps; it does **not** assess safety, drift
-causality, apply status, or redact addresses. Review its output before posting.
+## Count
+
+Use the tool's real semantics. For Terraform/OpenTofu saved-plan JSON:
+
+- `resource_changes[].change.importing` counts imports, independent of actions
+  (an import can also update in place).
+- Additions are exactly `["create"]`, changes `["update"]`, destructions
+  `["delete"]`; a replacement is `["delete","create"]` or `["create","delete"]`
+  and counts once, not also as an addition and destruction.
+- Exclude data reads and output changes. Imports overlap actions, so never sum
+  the five as unique resources. A quoted CLI headline is labelled separately:
+  its adds and destroys include replacements.
+- Unknown action semantics give counts labelled unavailable, never zeroes.
+
+This optional filter reads a locally assembled envelope, not arbitrary CI JSON:
+`head` from operation 3, `expected_scopes` from the workflow, and `plans`, each
+with `scope`, verified source `head`, `status` (`success` only for a successful
+preview), `complete` (coverage verified independently, including older tools
+with no JSON flag), `run`, `job`, `provenance` and `plan` (saved-plan JSON). A
+missing link is a gap here; describe genuinely local evidence by hand. It gives
+counts and gaps only - no safety, drift, apply-status or redaction judgement.
+Review its output before posting.
 
 ```jq
 def recognized:
@@ -117,78 +119,65 @@ def nonempty: type == "string" and length > 0;
 | {available: (length > 0 and all(.available)), scopes: .}
 ```
 
-See the tool's checked JSON format, including
-[Terraform's plan representation](https://developer.hashicorp.com/terraform/internals/json-format).
-OpenTofu and equivalent tools can differ: check the repository's version and
-output schema before using this filter. With text-only evidence, inspect the
-resource actions as well as the summary; unavailable import/replacement counts
-are labelled unavailable. Pulumi or change-set counts use their native operation
-names and replacement semantics, rather than forcing Terraform arithmetic.
+Check the repository's tool version and output schema first
+([Terraform's plan representation](https://developer.hashicorp.com/terraform/internals/json-format));
+OpenTofu and others can differ. With text-only evidence, inspect resource
+actions, not just the summary, and label unavailable counts. Pulumi and change
+sets use their own operation names and replacement semantics.
 
 Keep per-scope counts and coverage visible. Aggregate only verified, disjoint
-scopes with the same counting semantics. Never add duplicate reruns or
-overlapping states/workspaces together. Mixed tools, overlapping ownership, or
-unknown units get separate summaries with an explicit coverage gap; partial
-subtotals must say which scopes they exclude. A whole-change safety assessment
-requires every expected scope, even a unit whose selected plan is a no-op.
+scopes with the same counting semantics; never add duplicate reruns or
+overlapping states. Mixed tools, overlapping ownership or unknown units get
+separate summaries with the gap named, and a partial subtotal names the scopes
+it excludes. A whole-change assessment needs every expected scope, no-op units
+included.
 
-## Write the review
+## Write
 
-Fill [the one six-section template](../templates/infra-plan-comment.md). Keep
-exactly those headings in order, at level two. Use short paragraphs, bullets
-only for multiple risks or limitations. Put evidence links and scope/provenance
-in Counts; remove instruction comments and placeholders. Repository voice and
-signature rules still apply, with the signature last. No attestation or hidden
-marker is needed.
+Fill [the six-section template](../templates/infra-plan-comment.md): its level-two
+headings, in order. Short paragraphs; bullets only for several risks or limits.
+Evidence links, scope and provenance go in Counts. Remove instruction comments
+and placeholders. Repository voice and signature rules apply, signature last.
+No attestation or hidden marker.
 
-Safety states an assessment with a concrete reason and conditions, not merely
-"safe" because the job is green or counts contain no deletes. Review imports'
-ownership, blast radius, dependencies, in-place changes, destructive actions,
-unknown values, policy checks and plan/apply differences. Missing evidence means
-"Not assessable" with the named gaps. A destructive plan needs explicit risks
-and safeguards, never a clean verdict by default.
+- **Safety:** an assessment with a concrete reason and conditions - never "safe"
+  because the job is green or nothing is deleted. Weigh import ownership, blast
+  radius, dependencies, in-place and destructive changes, unknown values,
+  policy checks and plan/apply differences. Missing evidence: "Not assessable",
+  with the gaps. A destructive plan needs explicit risks and safeguards.
+- **Destroyed or replaced:** each resource and its evidenced implications (data
+  loss, interruption, ordering, dependencies). "None" covers inspected scopes
+  only.
+- **Drift not caused by this change:** separate observed drift with evidence of
+  unrelated cause from suspected and unchecked drift. A `resource_drift` entry
+  proves drift exists, not that this change did not cause it; attribute it from
+  an inspected baseline. Do not query production beyond the read-only preview to
+  fill this.
+- **What the plan cannot tell you:** targeted or partial coverage, unknown or
+  deferred values, provider apply-time validation, external or database drift,
+  concurrent changes, shared ownership and dependencies. Version-specific
+  claims only when checked against the locked version and current documentation.
+- **Not applied:** verified status with evidence, or "Apply status unverified;
+  this preview performed no apply." Read the apply triggers, approval and merge
+  policy and available apply history, including reruns and other branches. A
+  plan cannot prove nobody applied; say merge triggers apply only when the
+  workflow confirms it, and "no apply recorded" only within the history checked.
 
-Destroyed or replaced names each action's resource and implications (data loss,
-service interruption, ordering, dependencies) supported by evidence. "None"
-means none in the inspected scopes, not none in missing ones.
+Redact secrets, import IDs, sensitive identifiers and addresses, and plan values
+before saving the body: Terraform show JSON prints sensitive values in plain
+text. Publish only action names, safe resource labels, counts, evidence links
+and conclusions - never raw JSON, state, variable values or full logs. Keep raw
+files private, untracked and uncommitted, and never link a sensitive artifact
+publicly.
 
-Drift not caused by this change separates observed drift with evidence of
-unrelated causality from suspected drift and drift not checked. A
-`resource_drift` entry shows observed drift; it does not prove the PR did not
-cause it. Use an inspected baseline or other evidence to attribute it. Do not
-query production systems beyond the permitted read-only preview just to fill a
-section. "None observed in this plan" does not mean all systems were checked.
+## Post and verify
 
-What the plan cannot tell you names material limits: targeted/partial coverage,
-unknown or deferred values, provider apply-time validation, external/database
-drift, concurrent changes, shared ownership and dependencies. Make only
-version-specific claims checked against the repository's locked version and
-current authoritative documentation; never copy project facts from an example.
-
-Not applied reports verified status and its evidence, or "Apply status
-unverified; this preview performed no apply." Read repository apply triggers,
-manual approval/merge policy and available apply/deployment history, including
-reruns and other branches. A plan cannot prove nobody applied. Say merge
-triggers apply only if the workflow confirms it; say no apply was recorded only
-within the checked scope and history window. This skill never applies anything.
-
-Redact secrets, import IDs, sensitive identifiers/addresses and plan values
-before saving a publishable body. Terraform show JSON exposes sensitive values
-in plain text: flags are not a sanitizer. Allow only relevant action names,
-safe resource labels, counts, evidence links and reviewed conclusions. Never
-post raw JSON, state, variable values or full logs/artifacts. Keep local raw
-files private and out of commits; do not publish links granting public access
-to sensitive artifacts.
-
-## Post, update and verify
-
-Use operations 4 and 5's infrastructure forms in the
-[forge adapter](forge.md). One review comment per PR/MR, updated on re-publish or
-rerun; use the authenticated author's existing comment with the six headings,
-not a maintainer's or bot's similar review. Query all pages. Select it with the
-following jq filter after assembling `{actor, comments, body}`. GitHub comments
-have `author.login` (or REST `user.login`, normalize to `author`); GitLab notes
-have `author.username`. IDs must be the REST comment/note IDs for the write API.
+One review comment per change request, updated on re-publish or rerun. Read
+every page of comments (excluding GitLab system notes), normalise to
+`{actor, comments, body}` (GitHub `author.login` or REST `user.login` as
+`author`; GitLab `author.username`), with REST comment or note IDs, and select
+the comment with this filter. It matches only the authenticated author's comment
+with the six headings, never a maintainer's or bot's similar review:
 
 ```jq
 def author: if (.author | type) == "string" then .author else
@@ -202,22 +191,70 @@ def review:
   else {id: (.[0].id // null)} end
 ```
 
-A null ID means create; otherwise edit that exact comment. If a request times
-out, re-read comments before retrying to avoid duplicates. Never overwrite
-another account's review. Multiple matching comments require resolving ownership
-and duplicates without deleting others' comments; do not create another.
+A null ID means create; otherwise edit that exact comment. After a timeout,
+re-read before retrying so no duplicate appears. Never overwrite or delete
+another account's comment; several matches are resolved before writing, never by
+adding another.
 
-Read operation 3 immediately before posting and after reading the saved comment.
-Both heads must equal the full reviewed head. Read the saved body through
-operation 5 and verify author, six sections, full current head, scope/provenance
-and evidence links match the intended review. If the head changed, invalidate
-the assessment and obtain new plans; an older comment is not verification.
-Before Reporting repeat that check, including newer rerun evidence. Never infer
-success just from the write API's response.
+Read operation 3 immediately before posting and again after reading the saved
+comment back; both must equal the full reviewed head. Verify the saved body's
+author, six sections, full current head, scopes, provenance and links - the
+write API's response proves nothing. A changed head invalidates the review:
+fetch new plans. Repeat this check before Reporting, including newer reruns.
 
 Record `infra-plan`: `passed` only with complete current evidence, a supported
-assessment, and the saved current-head review verified. Destructive actions
-alone do not make the step fail if honestly reviewed; unresolved blocking risks
-do. Gaps or write/read failures are `skipped`/`failed`, block the verdict, and
-must be named in the final report with the comment URL and unreviewed scopes.
-`ci.required: false` does not waive this conditional review step.
+assessment and the saved current-head review verified. Honestly reviewed
+destructive actions do not fail it; unresolved blocking risks do. Gaps and
+write or read failures are `skipped` or `failed`, block the verdict, and are
+reported with the comment URL and unreviewed scopes. `ci.required: false` does
+not waive this step.
+
+## Forge commands
+
+Infrastructure forms of operations 4 and 5, not another publishing path. Prefer an installed forge wrapper
+for what it supports; use the authenticated CLI for API features it lacks.
+`-F body=@<path>` sends the file; `-f` would send the literal `@<path>`.
+
+### GitHub
+
+```sh
+gh run list --commit <head> --json databaseId,headSha,status,conclusion,url # 4
+gh run view <run-id> --json headSha,jobs,url                             # 4
+gh run view <run-id> --job <job-id> --log                                # 4
+gh run download <run-id> --name <plan-artifact> --dir <private-dir>       # 4
+gh api user --jq .login                                                 # 5, authenticated author
+gh api --paginate 'repos/{owner}/{repo}/issues/<number>/comments' | jq -s add # 5, all pages
+gh api -X POST 'repos/{owner}/{repo}/issues/<number>/comments' -F body=@<path> # 5, create
+gh api -X PATCH 'repos/{owner}/{repo}/issues/comments/<comment-id>' -F body=@<path> # 5, update
+gh api 'repos/{owner}/{repo}/issues/comments/<comment-id>'                # 5, read back
+```
+
+Page the run list if the relevant run is missing. Check source SHA, checkout
+and artifact provenance even for a green run, and download artifacts only into
+private, untracked storage. The
+[comment endpoints](https://docs.github.com/en/rest/issues/comments) never edit
+the pull request body.
+
+### GitLab
+
+```sh
+glab api 'projects/:fullpath/merge_requests/<number>/pipelines'           # 4
+glab api 'projects/:fullpath/pipelines/<pipeline-id>'                     # 4, SHA and URL
+glab api --paginate 'projects/:fullpath/pipelines/<pipeline-id>/jobs?include_retried=true' # 4
+glab ci trace <job-id>                                                  # 4, plan log
+glab api user | jq -er '.username | select(type == "string" and length > 0)' # 5, authenticated author
+glab api --paginate 'projects/:fullpath/merge_requests/<number>/notes' | jq -s add # 5, all pages
+glab api -X POST 'projects/:fullpath/merge_requests/<number>/notes' -F body=@<path> # 5, create
+glab api -X PUT 'projects/:fullpath/merge_requests/<number>/notes/<note-id>' -F body=@<path> # 5, update
+glab api 'projects/:fullpath/merge_requests/<number>/notes/<note-id>'     # 5, read back
+```
+
+Use the newest verified current-head preview job, including retried jobs and
+child or downstream pipelines the workflow selects; page pipeline listings when
+needed. When logs lack evidence, download the declared artifact with the
+repository's authenticated mechanism. Merged-result pipelines need their actual
+checkout inspected; their SHA need not be the source SHA. Update with the
+[notes API](https://docs.gitlab.com/api/notes/)'s PUT rather than a new
+`mr note` per rerun. If the author lookup fails (missing or empty username),
+stop before selecting or writing. Pass `-R` on self-hosted GitLab as in the
+main adapter.

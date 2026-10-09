@@ -9,7 +9,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { ROOT, SKILL_DIR, read, fencedBlocks } from './helpers.mjs';
 const exec = promisify(execFile);
-const adapter = fencedBlocks(read(path.join(SKILL_DIR, 'references/forge.md')).split('### GitLab')[1], 'sh')[0];
+const adapter = fencedBlocks(read(path.join(SKILL_DIR, 'references/infra-plan.md')).split('### GitLab')[1], 'sh')[0];
 
 async function harness(work) {
   const cache = path.join(ROOT, 'node_modules', '.cache');
