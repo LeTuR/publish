@@ -129,7 +129,7 @@ glab api --paginate 'projects/:fullpath/merge_requests/<number>/discussions' \
   | jq -s add                                                          # 5, one array however it pages
 glab api -X POST \
   'projects/:fullpath/merge_requests/<number>/discussions/<discussion-id>/notes' \
-  -f body=@<path>                                                      # 5, reply
+  -F body=@<path>                                                      # 5, reply
 glab api -X PUT \
   'projects/:fullpath/merge_requests/<number>/discussions/<discussion-id>?resolved=true'
 glab mr note <number> --message "<text>"                               # 5, a conversation comment
