@@ -200,7 +200,7 @@ test("the README tells an agent when to load the skill and when not to", () => {
 });
 
 test("nothing in the repository carries a local path, a private host or an address", () => {
-  const PUBLIC_HOSTS = ["github.com", "www.npmjs.com", "axi.md"];
+  const PUBLIC_HOSTS = ["github.com", "www.npmjs.com", "axi.md", "developer.hashicorp.com", "docs.github.com", "docs.gitlab.com", "gitlab.com"];
   const files = execFileSync("git", ["ls-files"], { cwd: ROOT, encoding: "utf8" })
     .split("\n")
     .filter(Boolean)

@@ -1,0 +1,24 @@
+{
+  "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "expected_scopes": ["infra/roles"],
+  "plans": [{
+    "scope": "infra/roles",
+    "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "status": "success",
+    "complete": true,
+    "run": "https://github.com/owner/repo/actions/runs/42",
+    "job": "https://github.com/owner/repo/actions/runs/42/job/43",
+    "provenance": "saved plan from current-head CI, workspace roles, untargeted",
+    "plan": {
+      "format_version": "1.2",
+      "complete": true,
+      "resource_changes": [
+        {"mode": "managed", "address": "role.reader", "change": {"actions": ["no-op"], "importing": {"id": "import-id"}, "before": {"password": "SECRET"}}},
+        {"mode": "managed", "address": "role.writer", "change": {"actions": ["no-op"], "importing": {"id": "import-id"}}},
+        {"mode": "managed", "address": "lock.roles", "change": {"actions": ["create"], "after": {"password": "raw-password"}}},
+        {"mode": "data", "address": "data.lookup", "change": {"actions": ["read"]}}
+      ],
+      "resource_drift": [{"address": "lock.roles", "change": {"actions": ["delete"]}}]
+    }
+  }]
+}
